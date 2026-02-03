@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './Layouts/Pages/Auth/Login';
 import ForgotPassword from './Layouts/Pages/Auth/ForgotPassword';
-import Layout from './Components/Layout';
+import Layout from './Components/layout';
 import ProtectedRoute from './Components/ProtectedRoute';
 import { UserProvider } from './Context/UserContext';
 
