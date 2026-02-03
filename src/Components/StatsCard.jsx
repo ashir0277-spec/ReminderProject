@@ -2,7 +2,7 @@ import React from 'react';
 import UsersIcon from '../assets/Users.svg';
 import ActiveIcon from '../assets/active.svg';
 import InactiveIcon from '../assets/inactive.svg';
-import { useUserStats } from '../context/UserContext';
+import { useUserStats } from '../Context/UserContext'
 
 const StatsCard = () => {
   const { userStats, loading } = useUserStats();
