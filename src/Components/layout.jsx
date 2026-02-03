@@ -33,7 +33,7 @@ const Layout = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex-1 min-h-screen bg-gray-100">
       {/* Sidebar */}
       {SidebarComponent && <SidebarComponent isOpen={isMobileSidebarOpen} onClose={handleCloseSidebar} />}
 

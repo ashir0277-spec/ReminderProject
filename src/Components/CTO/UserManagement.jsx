@@ -404,15 +404,15 @@ const UserManagement = () => {
       <div className='flex justify-between items-center mb-5 mt-5'>
         <p className='sm:text-xl font-semibold'>User Management</p>
         <button
-          className='bg-[#0081FFFC] flex gap-1 items-center justify-center text-white text-xs font-medium px-4 py-3 rounded-xl hover:bg-blue-600 transition-colors'
+          className='bg-[#0081FFFC] flex gap-1 items-center justify-center text-white text-xs font-medium px-4 py-3 rounded-xl hover:bg-blue-600 transition-colors whi'
           onClick={() => setShowModal(true)}
         >
-          <IoAddOutline className='text-[20px]' /> New Reminder
+          <IoAddOutline className='text-[20px] ' /> New Reminder
         </button>
       </div>
 
       {/* Tab Navigation */}
-      <div className='flex md:gap-4 mb-5 whitespace-nowrap'>
+      <div className='flex gap-2 mb-5 whitespace-nowrap overflow-x-auto ' style={{scrollbarWidth: 'none'}}>
         <button
           className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
             activeTab === 'my'

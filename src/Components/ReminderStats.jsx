@@ -76,8 +76,8 @@ const ReminderStats = () => {
 
   return (
     <>
-      <p className='text-2xl font-semibold'>My Reminders</p>
-      <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 my-6'>
+      <p className='text-2xl font-semibold px-3'>My Reminders</p>
+      <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-3  my-6'>
         {reminderStats.map((item) => (
           <div 
             key={item.id} 
