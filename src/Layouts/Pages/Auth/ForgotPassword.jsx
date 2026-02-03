@@ -24,7 +24,10 @@ const ForgotPassword = () => {
       setTimeout(() => navigate("/login"), 2000);
     } catch (error) {
       console.error(error);
-      toast.error("Error sending reset email. Check your email address.", { position: "top-center" });
+      let errorMessage = "Error sending reset email. Check your email address.";
+      if (error.code === 'auth/user-not-found') errorMessage = "No account found with this email.";
+      else if (error.code === 'auth/invalid-email') errorMessage = "Invalid email address.";
+      toast.error(errorMessage, { position: "top-center" });
     } finally {
       setLoading(false);
     }
