@@ -62,6 +62,7 @@ const HRSettings = () => {
         <h1 className='font-semibold text-2xl'>Settings</h1>
         <p className='text-[#80849C] text-sm font-medium'>
           Manage your account and preferences
+          
         </p>
 
         <div className='pl-4 flex w-full rounded-md border border-[#E5E5E5] mt-4 py-4 items-center'>
