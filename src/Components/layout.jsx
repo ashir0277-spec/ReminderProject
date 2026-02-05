@@ -33,17 +33,17 @@ const Layout = () => {
   }
 
   return (
-    <div className="flex-1 min-h-screen bg-gray-100">
+    <div className="flex-1  bg-gray-100">
       {/* Sidebar */}
       {SidebarComponent && <SidebarComponent isOpen={isMobileSidebarOpen} onClose={handleCloseSidebar} />}
 
       {/* Main Content */}
-      <div className={`flex-1 flex flex-col ${!isPublicPage ? "lg:ml-[280px]" : ""}`}>
+      <div className={` h-auto flex flex-col  ${!isPublicPage ? "lg:ml-[280px]" : ""}`}>
         {/* Topbar only for authorized pages */}
         {!isPublicPage && <Topbar onMenuClick={handleToggleSidebar} />}
 
         {/* Page Content */}
-        <main className={`flex-1 py-6 px-2 lg:px-6 ${isPublicPage ? "mt-0" : "mt-16"}`}>
+        <main className={` pt-6    px-2 lg:px-6 ${isPublicPage ? "mt-0" : "mt-16"}`}>
           <Outlet />
         </main>
       </div>
