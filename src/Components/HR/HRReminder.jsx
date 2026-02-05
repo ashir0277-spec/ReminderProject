@@ -133,15 +133,15 @@ const HRReminder = () => {
       <div className='min-h-screen'>
         <h1 className='text-2xl font-semibold pl-4'>HR Dashboard</h1>
 
-        <div className='w-[35%] min-h-20 mt-5'>
-          <p className='pl-4'>Sent Reminders</p>
+        <div className='   min-h-20 mt-5'>
+          <p className='px-4 text-sm font-medium  whitespace-nowrap'>Sent Reminders</p>
 
-          <div className='py-3 flex justify-between px-4 mt-6'>
+          <div className='py-3 flex justify-between px-4 '>
             {["All", "Pending", "Approved", "Rejected"].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`font-medium text-xs px-8 py-2 rounded-2xl
+                className={`font-medium text-xs px-5 py-2 rounded-2xl
                   ${activeTab === tab
                     ? "bg-[#0081FF] text-white"
                     : "bg-transparent text-[#575B74]"
@@ -174,11 +174,11 @@ const HRReminder = () => {
             return (
               <div
                 key={item.id}
-                className='border border-[#E5E5E5] min-h-30 mx-4 mt-4 rounded-2xl shadow-sm p-4'
+                className='border  border-[#E5E5E5]  min-h-30 mx-4 mt-4 rounded-2xl shadow-sm p-4'
               >
                 <div className='flex items-start gap-3'>
                   <div
-                    className={`w-15 h-15 rounded-full 
+                    className={`w-10 h-10 rounded-full 
                     ${avatar.bg} 
                     flex items-center justify-center flex-shrink-0`}
                   >
@@ -190,11 +190,11 @@ const HRReminder = () => {
                   <div className='flex flex-col flex-1 mt-2'>
                     <div className='flex justify-between items-start'>
                       <p className='text-sm font-medium'>{item.title}</p>
-                      <p className='text-[#D4183D] text-xs'>! {item.priority}</p>
+                      <p className='text-[#D4183D] text-xs whitespace-nowrap'>! {item.priority}</p>
                     </div>
 
                     {item.description && (
-                      <p className='text-xs text-[#575B74] mt-2'>
+                      <p className='text-xs font-medium text-[#575B74] mt-2'>
                         {item.description}
                       </p>
                     )}
@@ -203,11 +203,11 @@ const HRReminder = () => {
                       Created by: {item.createdBy}
                     </p>
 
-                    <p className='text-[#575B74] text-xs font-medium mt-1'>
+                    <p className='text-blue-600 text-xs font-medium mt-1'>
                       Assigned to: {item.name}
                     </p>
 
-                    <div className='h-[2px] w-full bg-[#E5E5E5] mt-6'></div>
+                    <div className='h-[2px] w-full bg-[#E5E5E5] mt-3'></div>
 
                     <div className='flex items-center justify-between mt-3'>
                       <p className='text-[#2C3E50] font-medium text-xs flex items-center gap-2'>

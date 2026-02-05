@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from './HrSidebar'
 import Topbar from '../Admin/Topbar'
-import user from '../../assets/user-01.svg'
+import { LuUserPen } from "react-icons/lu";
 import { doc, setDoc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 
@@ -58,7 +58,7 @@ const HRSettings = () => {
     <>
       <Sidebar />
 
-      <div className='mx-3 mt-5'>
+      <div className='mx-3 mt-5 min-h-screen'>
         <h1 className='font-semibold text-2xl'>Settings</h1>
         <p className='text-[#80849C] text-sm font-medium'>
           Manage your account and preferences
@@ -66,10 +66,13 @@ const HRSettings = () => {
 
         <div className='pl-4 flex w-full rounded-md border border-[#E5E5E5] mt-4 py-4 items-center'>
           {/* User Icon */}
-          <img src={user} alt="" className='mx-4' />
+          <div className=' w-[15%] sm:w-auto   '>
+           <LuUserPen className=' text-3xl'/>
 
+          </div>
+        
           {/* Inputs */}
-          <div className='flex flex-col pl-4 w-full'>
+          <div className='flex flex-col pl-4 w-[85%] sm:w-full'>
             <input
               type="text"
               value={name}

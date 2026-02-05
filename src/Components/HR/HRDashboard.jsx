@@ -137,12 +137,12 @@ const HRDashboard = () => {
     <>
       <Sidebar />
 
-      <div className='mr-6 rounded-md min-h-screen border border-[#E2E4E7] p-6'>
+      <div className=' rounded-md min-h-screen border border-[#E2E4E7] p-4'>
         <div className='flex justify-between items-center mb-6'>
-          <h1 className='text-2xl font-semibold'>HR Dashboard</h1>
+          <h1 className='text-xl whitespace-nowrap  md:text-2xl font-semibold'>HR Dashboard</h1>
           <button
             onClick={() => setShowModal(true)}
-            className='bg-[#0081FFFC] flex gap-2 items-center text-white text-sm font-medium px-6 py-2.5 rounded-xl'
+            className='bg-[#0081FFFC] flex gap-2 items-center text-white text-sm font-medium px-2 md:px-6 py-2.5 rounded-xl whitespace-nowrap'
           >
             <IoAddOutline className='text-[20px]' />
             New Reminder
@@ -158,26 +158,26 @@ const HRDashboard = () => {
               className='border border-[#E5E5E5] shadow-md px-4 py-4 mt-6 rounded-lg space-y-3'
             >
               <div className='flex justify-between'>
-                <h1 className='text-sm font-semibold'>{item.title}</h1>
-                <p className='text-[#D4183D] text-xs'>! {item.priority}</p>
+                <h1 className='text-base font-semibold'>{item.title}</h1>
+                <p className='text-[#D4183D] text-xs font-semibold'>! {item.priority}</p>
               </div>
 
               {item.description && (
-                <p className='text-xs text-gray-600'>
+                <p className='text-xs font-medium text-gray-600'>
                   {item.description}
                 </p>
               )}
 
               <div className='flex gap-2 items-center'>
                 <img src={user01} className='w-5 h-5' alt="user" />
-                <p className='text-xs text-[#575B74]'>
+                <p className='text-xs font-medium text-[#575B74]'>
                   Created by: {item.createdBy}
                 </p>
               </div>
 
               {/* Assigned to - fallback add kiya (agar blank hai to sharedWith se role/email uthao) */}
               {(item.assignedTo || item.sharedWith?.includes('HR') || item.assignedEmails?.includes(currentUserEmail)) && (
-                <p className='text-xs text-blue-600 mt-1'>
+                <p className='text-base font-medium text-blue-600 mt-1'>
                   Assigned to: <span className='font-medium'>
                     {item.assignedTo?.trim() || 'HR' || item.assignedEmails?.[0] || 'You'}
                   </span>
@@ -186,7 +186,7 @@ const HRDashboard = () => {
 
               <div className='flex gap-2 items-center'>
                 <img src={calendardate} className='w-5 h-5' alt="calendar" />
-                <p className='text-sm'>
+                <p className='text-xs font-medium '>
                   {new Date(item.date).toLocaleDateString()} , {item.time}
                 </p>
               </div>
