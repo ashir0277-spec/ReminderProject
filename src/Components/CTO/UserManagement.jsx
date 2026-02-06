@@ -11,7 +11,6 @@ import { toast, ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 
 const UserManagement = () => {
-  // ==================== STATE MANAGEMENT ====================
   const [selectedDate, setSelectedDate] = useState(null);
   const [activeTab, setActiveTab] = useState('my');
   
@@ -172,18 +171,18 @@ const UserManagement = () => {
   };
 
   const confirmAssignment = () => {
-  const assignedRoles = [...new Set(selectedUsers.map(u => u.role))].join(', '); // ← Yeh change: roles use karo, unique
-  const assignedEmails = selectedUsers.map(u => u.email);
+    const assignedRoles = [...new Set(selectedUsers.map(u => u.role))].join(', ');
+    const assignedEmails = selectedUsers.map(u => u.email);
 
-  setNewReminder(prev => ({
-    ...prev,
-    assignTo: assignedRoles, // ← Assigned to ab role banega (e.g. "HR")
-    assignedEmails
-  }));
+    setNewReminder(prev => ({
+      ...prev,
+      assignTo: assignedRoles || '',
+      assignedEmails: assignedEmails || []
+    }));
 
-  setShowAssignDropdown(false);
-  setExpandedRole(null);
-};
+    setShowAssignDropdown(false);
+    setExpandedRole(null);
+  };
 
   const clearAssignments = () => {
     setSelectedUsers([]);
@@ -239,94 +238,83 @@ const UserManagement = () => {
   };
 
   const createReminder = async () => {
-  // Agar users select kiye hain lekin confirm nahi hua to force confirm kar do
-  if (selectedUsers.length > 0 && !newReminder.assignTo) {
-    confirmAssignment();
-    // Thoda wait karo taake state update ho jaye (React state update async hota hai)
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
-
-  if (!newReminder.title || !newReminder.date) {
-    toast.error("Title and Date are required");
-    return;
-  }
-
-  try {
-    const assignedEmails = newReminder.assignedEmails || [];
-
-    // 1. Emails ko sharedWith mein daalo
-    let sharedWith = [...assignedEmails];
-
-    // 2. Selected users ke ROLES ko bhi add kar do → yeh sab se important change hai
-    const assignedRoles = new Set(selectedUsers.map(user => user.role));
-    assignedRoles.forEach(role => {
-      if (!sharedWith.includes(role)) {
-        sharedWith.push(role);
-      }
-    });
-
-    // 3. Creator (current user) ko bhi add kar do agar nahi hai
-    if (!sharedWith.includes(currentUser)) {
-      sharedWith.push(currentUser);
+    if (selectedUsers.length > 0 && !newReminder.assignTo) {
+      confirmAssignment();
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    const docRef = await addDoc(collection(db, "reminders"), {
-      title: newReminder.title,
-      description: newReminder.description,
-      priority: newReminder.priority,
-      date: newReminder.date,
-      time: newReminder.time,
-      alertTime: newReminder.alertTime,
-      createdBy: currentUser,
-      status: 'pending',
-      starred: false,
-      dismissed: false,                // ← yeh zaroori tha, testing mein true aa raha tha
-      assignedTo: (newReminder.assignTo || '').trim(),
-      assignedEmails: assignedEmails,
-      sharedWith: sharedWith,
-      createdAt: serverTimestamp()
-    });
+    if (!newReminder.title || !newReminder.date) {
+      toast.error("Title and Date are required");
+      return;
+    }
+    
+    try {
+      const assignedEmails = newReminder.assignedEmails || [];
 
-    // Local state update mein bhi same sharedWith use karo
-    setReminders(prev => [...prev, {
-      id: docRef.id,
-      ...newReminder,
-      assignedTo: (newReminder.assignTo || '').trim(),
-      assignedEmails,
-      createdBy: currentUser,
-      status: 'pending',
-      starred: false,
-      dismissed: false,
-      sharedWith: sharedWith,
-      createdAt: new Date() // approximate for immediate UI
-    }]);
+      // IMPORTANT: SharedWith mein sirf assigned roles/emails daalo
+      // Creator ka role mat daalo → isse "Shared with me" tab mein overlap nahi hoga
+      let sharedWith = [...assignedEmails];
 
-    // Reset form
-    setShowModal(false);
-    setNewReminder({
-      title: '',
-      description: '',
-      priority: 'Normal',
-      date: '',
-      time: '',
-      alertTime: '',
-      assignTo: '',
-      assignedEmails: []
-    });
-    setSelectedUsers([]);
-    setSelectAllHR(false);
-    setSelectAllCTO(false);
+      const assignedRoles = new Set(selectedUsers.map(user => user.role));
+      assignedRoles.forEach(role => {
+        if (!sharedWith.includes(role)) {
+          sharedWith.push(role);
+        }
+      });
 
-    toast.success("Reminder created successfully!");
+      // Creator ko sharedWith mein nahi daal rahe (sirf assigned logon ke liye)
 
-    // Optional: list refresh karne ke liye
-    // fetchReminders();
-
-  } catch (err) {
-    toast.error("Failed to create reminder");
-    console.error("Create reminder error:", err);
-  }
-};
+      const docRef = await addDoc(collection(db, "reminders"), {
+        title: newReminder.title,
+        description: newReminder.description,
+        priority: newReminder.priority,
+        date: newReminder.date,
+        time: newReminder.time,
+        alertTime: newReminder.alertTime,
+        createdBy: currentUser,
+        status: 'pending',
+        starred: false,
+        dismissed: false,
+        assignedTo: (newReminder.assignTo || '').trim(),
+        assignedEmails: assignedEmails,
+        sharedWith: sharedWith,
+        createdAt: serverTimestamp()
+      });
+      
+      setReminders(prev => [...prev, {
+        id: docRef.id,
+        ...newReminder,
+        assignedTo: (newReminder.assignTo || '').trim(),
+        assignedEmails,
+        createdBy: currentUser,
+        status: 'pending',
+        starred: false,
+        dismissed: false,
+        sharedWith,
+        createdAt: new Date()
+      }]);
+      
+      setShowModal(false);
+      setNewReminder({
+        title: '',
+        description: '',
+        priority: 'Normal',
+        date: '',
+        time: '',
+        alertTime: '',
+        assignTo: '',
+        assignedEmails: []
+      });
+      setSelectedUsers([]);
+      setSelectAllHR(false);
+      setSelectAllCTO(false);
+      
+      toast.success("Reminder created successfully!");
+    } catch (err) {
+      toast.error("Failed to create reminder");
+      console.error(err);
+    }
+  };
 
   // ==================== APPROVE / REJECT HANDLERS ====================
   const handleApproveClick = id => setApproveModal({ show: true, reminderId: id });
@@ -476,7 +464,7 @@ const UserManagement = () => {
 
   const filterByTab = (reminder) => {
     if (activeTab === 'my') return reminder.createdBy === currentUser;
-    if (activeTab === 'sharedWithMe') return reminder.sharedWith?.includes(currentUser);
+    if (activeTab === 'sharedWithMe') return reminder.sharedWith?.includes(currentUser) && reminder.createdBy !== currentUser; // Overlap fix
     if (activeTab === 'sharedByMe') return reminder.createdBy === currentUser && reminder.sharedWith?.length > 0;
     return true;
   };
@@ -523,7 +511,7 @@ const UserManagement = () => {
           }`}
           onClick={() => setActiveTab('sharedWithMe')}
         >
-          Shared With Me ({reminders.filter(r => r.sharedWith?.includes(currentUser)).length})
+          Shared With Me ({reminders.filter(r => r.sharedWith?.includes(currentUser) && r.createdBy !== currentUser).length})
         </button>
         <button
           className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
@@ -625,42 +613,49 @@ const UserManagement = () => {
                   </div>
                   <div className='h-[1px] bg-[#E5E5E5] my-3'></div>
                   
+                  {/* FIXED: Status sirf tab dikhao jab reminder SIRF HR ke liye nahi bana */}
                   {item.status === 'pending' ? (
-                    item.createdBy === currentUser ? (
-                      <div className='flex justify-end'>
-                        <span className='bg-[#F9FAFB] border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-xs font-medium'>
-                          Pending
-                        </span>
-                      </div>
-                    ) : (
-                      <div className='flex gap-2 flex-wrap'>
-                        <button
-                          onClick={() => handleApproveClick(item.id)}
-                          className='bg-[#22C55E] hover:bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors'
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleRejectClick(item.id)}
-                          className='bg-[#EF4444] hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors'
-                        >
-                          Reject
-                        </button>
-                        <button className='bg-[#F9FAFB] border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-xs font-medium cursor-default'>
-                          Pending
-                        </button>
-                      </div>
+                    // Agar reminder SIRF HR ke liye bana hai → status aur buttons HIDE
+                    item.assignedTo === "HR" || item.assignedTo === "" ? null : (
+                      item.createdBy === currentUser ? (
+                        <div className='flex justify-end'>
+                          <span className='bg-[#F9FAFB] border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-xs font-medium'>
+                            Pending
+                          </span>
+                        </div>
+                      ) : (
+                        <div className='flex gap-2 flex-wrap'>
+                          <button
+                            onClick={() => handleApproveClick(item.id)}
+                            className='bg-[#22C55E] hover:bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors'
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleRejectClick(item.id)}
+                            className='bg-[#EF4444] hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors'
+                          >
+                            Reject
+                          </button>
+                          <button className='bg-[#F9FAFB] border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-xs font-medium cursor-default'>
+                            Pending
+                          </button>
+                        </div>
+                      )
                     )
                   ) : (
-                    <div className='flex justify-end items-center'>
-                      <span
-                        className={`font-medium text-sm ${
-                          item.status === 'approved' ? 'text-green-600' : 'text-red-600'
-                        }`}
-                      >
-                        {getStatusText(item)}
-                      </span>
-                    </div>
+                    // Approved/Rejected status bhi sirf tab dikhao jab HR ke liye nahi bana
+                    !item.assignedTo?.includes("HR") && (
+                      <div className='flex justify-end items-center'>
+                        <span
+                          className={`font-medium text-sm ${
+                            item.status === 'approved' ? 'text-green-600' : 'text-red-600'
+                          }`}
+                        >
+                          {getStatusText(item)}
+                        </span>
+                      </div>
+                    )
                   )}
                 </div>
               ))}
@@ -842,7 +837,6 @@ const UserManagement = () => {
                           )}
                         </div>
 
-                        {/* CTO section */}
                         <div className='border-b border-gray-200'>
                           <div
                             className='px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center'
@@ -884,7 +878,6 @@ const UserManagement = () => {
                           )}
                         </div>
 
-                        {/* HR section */}
                         <div className='border-b border-gray-200'>
                           <div
                             className='px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center'

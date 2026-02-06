@@ -44,7 +44,7 @@ const HRHistory = () => {
     <>
       <Sidebar />
 
-      <div className="mr-6 rounded-md min-h-screen border border-[#E2E4E7] p-6">
+      <div className=" rounded-md min-h-screen border border-[#E2E4E7] p-6">
         <h1 className="text-2xl font-semibold pl-1 pt-3">
           Reminders History
         </h1>

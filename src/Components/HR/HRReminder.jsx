@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import Sidebar from './HrSidebar';
 
 import user01 from '../../assets/user-01.svg';
@@ -40,7 +40,6 @@ const HRReminder = () => {
         const myList = mySnap.docs.map(docSnap => {
           const data = docSnap.data();
           let status = data.status || "pending";
-          // Normalize status for display
           if (status === "reject") status = "rejected";
           status = status.charAt(0).toUpperCase() + status.slice(1);
 
@@ -57,7 +56,9 @@ const HRReminder = () => {
               status.toLowerCase() === "pending" ? "#FF8D28" :
               status.toLowerCase() === "approved" ? "#22C55E" :
               "#EF4444",
-            priority: data.priority || "Normal"
+            priority: data.priority || "Normal",
+            // Yeh extra field add kiya taake status hide kar sakein
+            isIncoming: data.createdBy !== currentUser
           };
         });
 
@@ -80,7 +81,8 @@ const HRReminder = () => {
               status.toLowerCase() === "pending" ? "#FF8D28" :
               status.toLowerCase() === "approved" ? "#22C55E" :
               "#EF4444",
-            priority: data.priority || "Normal"
+            priority: data.priority || "Normal",
+            isIncoming: true  // Yeh shared list se aaya hai → incoming
           };
         });
 
@@ -104,7 +106,7 @@ const HRReminder = () => {
     loadReminders();
   }, []);
 
-  // Filter logic (already sahi tha, bas confirm kar rahe hain)
+  // Filter logic
   const filteredReminders =
     activeTab === "All"
       ? hrReminders
@@ -133,10 +135,10 @@ const HRReminder = () => {
       <div className='min-h-screen'>
         <h1 className='text-2xl font-semibold pl-4'>HR Dashboard</h1>
 
-        <div className='   min-h-20 mt-5'>
-          <p className='px-4 text-sm font-medium  whitespace-nowrap'>Sent Reminders</p>
+        <div className='min-h-20 mt-5'>
+          <p className='px-4 text-sm font-medium whitespace-nowrap'>Sent Reminders</p>
 
-          <div className='py-3 flex justify-between px-4 '>
+          <div className='py-3 flex justify-between lg:w-[40%] px-4'>
             {["All", "Pending", "Approved", "Rejected"].map(tab => (
               <button
                 key={tab}
@@ -174,7 +176,7 @@ const HRReminder = () => {
             return (
               <div
                 key={item.id}
-                className='border  border-[#E5E5E5]  min-h-30 mx-4 mt-4 rounded-2xl shadow-sm p-4'
+                className='border border-[#E5E5E5] min-h-30 mx-4 mt-4 rounded-2xl shadow-sm p-4'
               >
                 <div className='flex items-start gap-3'>
                   <div
@@ -215,12 +217,15 @@ const HRReminder = () => {
                         {item.dueDate} {item.time && `, ${item.time}`}
                       </p>
 
-                      <p
-                        className='font-medium text-sm'
-                        style={{ color: item.statusColor }}
-                      >
-                        • {item.status}
-                      </p>
+                      {/* FIXED: Status sirf tab dikhao jab reminder HR ne khud banaya ho (outgoing) */}
+                      {item.createdBy === currentUser && (
+                        <p
+                          className='font-medium text-sm'
+                          style={{ color: item.statusColor }}
+                        >
+                          • {item.status}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

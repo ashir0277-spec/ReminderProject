@@ -10,7 +10,6 @@ import { db } from "../firebase";
 const CEOHistory = () => {
   const [history, setHistory] = useState([]);
 
-  // 🔹 Fetch reminders history (real-time)
   useEffect(() => {
     const q = query(
       collection(db, "reminders"),
@@ -28,21 +27,21 @@ const CEOHistory = () => {
     return () => unsubscribe();
   }, []);
 
-  // 🔹 Border color by status
+  // Border color by status
   const statusColor = (status) => {
     switch (status) {
       case "approved":
-        return "border-green-500 bg-green-";
+        return "border-green-500 bg-green-50";
       case "reject":
-        return "border-red-500 ";
+        return "border-red-500 bg-red-50";
       case "pending":
-        return "border-orange-500 ";
+        return "border-orange-500 bg-orange-50";
       default:
         return "border-gray-400 bg-gray-50";
     }
   };
 
-  // 🔹 Status badge color
+  // Status badge color
   const statusBadgeColor = (status) => {
     switch (status) {
       case "approved":
@@ -54,6 +53,17 @@ const CEOHistory = () => {
       default:
         return "bg-gray-100 text-gray-700";
     }
+  };
+
+  // Assigned to smart display
+  const getAssignedToDisplay = (item) => {
+    if (item.assignedTo && item.assignedTo.trim() !== '') {
+      return item.assignedTo.trim();
+    }
+    if (item.assignedEmails && item.assignedEmails.length > 0) {
+      return item.assignedEmails.join(", ");
+    }
+    return "Not Assigned";
   };
 
   return (
@@ -81,23 +91,33 @@ const CEOHistory = () => {
               <div className="flex-1">
                 <h3 className="font-medium text-gray-800">{item.title}</h3>
 
-                <p className="text-sm text-gray-600 mt-1">
+                {/* Assigned To */}
+                <p className="text-sm text-gray-700 mt-1">
                   To:{" "}
-                  <span className="font-medium">
-                    {item.assignedTo || "N/A"}
+                  <span className="font-medium text-blue-700">
+                    {getAssignedToDisplay(item)}
                   </span>
                 </p>
 
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-500 mt-1">
                   Created At:{" "}
-                  {item.createdAt?.toDate().toLocaleDateString()}
+                  {item.createdAt?.toDate?.()
+                    ? item.createdAt.toDate().toLocaleString()
+                    : "N/A"}
                 </p>
               </div>
 
-              {/* Status Badge */}
-              <span className={`text-xs font-medium px-3 py-1 rounded-full capitalize ${statusBadgeColor(item.status)}`}>
-                {item.status === 'reject' ? 'Rejected' : item.status}
-              </span>
+              {/* FIXED: Status sirf tab dikhao jab reminder SIRF HR ke liye nahi bana */}
+              {/* Yani agar assignedTo mein "HR" nahi hai ya multiple log hain to dikhao */}
+              {(!item.assignedTo?.includes("HR") || item.assignedTo.split(', ').length > 1) && (
+                <span
+                  className={`text-xs font-medium px-3 py-1 rounded-full capitalize ${statusBadgeColor(
+                    item.status
+                  )}`}
+                >
+                  {item.status === "reject" ? "Rejected" : item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                </span>
+              )}
             </div>
           ))
         )}
