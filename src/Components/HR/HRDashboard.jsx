@@ -133,12 +133,12 @@ const HRDashboard = () => {
     <>
       <Sidebar />
 
-      <div className='mr-6 rounded-md min-h-screen border border-[#E2E4E7] p-6'>
+      <div className='mr-6 rounded-md min-h-screen border border-[#E2E4E7] p-3'>
         <div className='flex justify-between items-center mb-6'>
-          <h1 className='text-2xl font-semibold'>HR Dashboard</h1>
+          <h1 className=' text-base sm:text-2xl font-bold sm:font-semibold whitespace-nowrap'>HR Dashboard</h1>
           <button
             onClick={() => setShowModal(true)}
-            className='bg-[#0081FFFC] flex gap-2 items-center text-white text-sm font-medium px-6 py-2.5 rounded-xl'
+            className='bg-[#0081FFFC] flex gap-2 items-center text-white text-sm font-medium px-3 py-1.5 sm:py-2.5 rounded-xl whitespace-nowrap'
           >
             <IoAddOutline className='text-[20px]' />
             New Reminder
