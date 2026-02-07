@@ -57,7 +57,6 @@ const HRReminder = () => {
               status.toLowerCase() === "approved" ? "#22C55E" :
               "#EF4444",
             priority: data.priority || "Normal",
-            // Yeh extra field add kiya taake status hide kar sakein
             isIncoming: data.createdBy !== currentUser
           };
         });
@@ -82,7 +81,7 @@ const HRReminder = () => {
               status.toLowerCase() === "approved" ? "#22C55E" :
               "#EF4444",
             priority: data.priority || "Normal",
-            isIncoming: true  // Yeh shared list se aaya hai → incoming
+            isIncoming: true
           };
         });
 
@@ -126,6 +125,17 @@ const HRReminder = () => {
     return parts.length > 1
       ? parts[0][0] + parts[parts.length - 1][0]
       : parts[0][0] || "?";
+  };
+
+  // NEW: Status sirf tab dikhao jab reminder HR ne dusre ke liye banaya ho
+  const shouldShowStatus = (item) => {
+    // Agar reminder HR ne khud ke liye banaya (createdBy === "HR" aur incoming nahi)
+    // ya dusre ne HR ko bheja → status hide
+    const isSelfCreated = item.createdBy === currentUser;
+    const isIncoming = item.isIncoming;
+
+    // HR ke liye create kiye hue (self) ya incoming (dusre se) → status hide
+    return !(isSelfCreated || isIncoming);
   };
 
   return (
@@ -217,8 +227,8 @@ const HRReminder = () => {
                         {item.dueDate} {item.time && `, ${item.time}`}
                       </p>
 
-                      {/* FIXED: Status sirf tab dikhao jab reminder HR ne khud banaya ho (outgoing) */}
-                      {item.createdBy === currentUser && (
+                      {/* FIXED: Status sirf tab dikhao jab reminder HR ne dusre ke liye banaya ho */}
+                      {shouldShowStatus(item) && (
                         <p
                           className='font-medium text-sm'
                           style={{ color: item.statusColor }}

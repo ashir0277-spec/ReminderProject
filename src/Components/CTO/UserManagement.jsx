@@ -143,9 +143,7 @@ const UserManagement = () => {
       setSelectAllHR(true);
     }
     
-    setTimeout(() => {
-      setExpandedRole(null);
-    }, 200);
+    setTimeout(() => setExpandedRole(null), 200);
   };
 
   const handleSelectAllCTO = () => {
@@ -161,9 +159,7 @@ const UserManagement = () => {
       setSelectAllCTO(true);
     }
     
-    setTimeout(() => {
-      setExpandedRole(null);
-    }, 200);
+    setTimeout(() => setExpandedRole(null), 200);
   };
 
   const isUserSelected = (userId) => {
@@ -171,12 +167,14 @@ const UserManagement = () => {
   };
 
   const confirmAssignment = () => {
+    if (selectedUsers.length === 0) return;
+
     const assignedRoles = [...new Set(selectedUsers.map(u => u.role))].join(', ');
     const assignedEmails = selectedUsers.map(u => u.email);
 
     setNewReminder(prev => ({
       ...prev,
-      assignTo: assignedRoles || '',
+      assignTo: assignedRoles.trim() || '',
       assignedEmails: assignedEmails || []
     }));
 
@@ -251,8 +249,6 @@ const UserManagement = () => {
     try {
       const assignedEmails = newReminder.assignedEmails || [];
 
-      // IMPORTANT: SharedWith mein sirf assigned roles/emails daalo
-      // Creator ka role mat daalo → isse "Shared with me" tab mein overlap nahi hoga
       let sharedWith = [...assignedEmails];
 
       const assignedRoles = new Set(selectedUsers.map(user => user.role));
@@ -261,8 +257,6 @@ const UserManagement = () => {
           sharedWith.push(role);
         }
       });
-
-      // Creator ko sharedWith mein nahi daal rahe (sirf assigned logon ke liye)
 
       const docRef = await addDoc(collection(db, "reminders"), {
         title: newReminder.title,
@@ -275,7 +269,7 @@ const UserManagement = () => {
         status: 'pending',
         starred: false,
         dismissed: false,
-        assignedTo: (newReminder.assignTo || '').trim(),
+        assignedTo: newReminder.assignTo.trim(),
         assignedEmails: assignedEmails,
         sharedWith: sharedWith,
         createdAt: serverTimestamp()
@@ -284,7 +278,7 @@ const UserManagement = () => {
       setReminders(prev => [...prev, {
         id: docRef.id,
         ...newReminder,
-        assignedTo: (newReminder.assignTo || '').trim(),
+        assignedTo: newReminder.assignTo.trim(),
         assignedEmails,
         createdBy: currentUser,
         status: 'pending',
@@ -464,7 +458,7 @@ const UserManagement = () => {
 
   const filterByTab = (reminder) => {
     if (activeTab === 'my') return reminder.createdBy === currentUser;
-    if (activeTab === 'sharedWithMe') return reminder.sharedWith?.includes(currentUser) && reminder.createdBy !== currentUser; // Overlap fix
+    if (activeTab === 'sharedWithMe') return reminder.sharedWith?.includes(currentUser) && reminder.createdBy !== currentUser;
     if (activeTab === 'sharedByMe') return reminder.createdBy === currentUser && reminder.sharedWith?.length > 0;
     return true;
   };
@@ -479,6 +473,33 @@ const UserManagement = () => {
     if (item.status === 'reject') return `✗ Rejected by ${item.updatedBy || ''}`;
     return 'Pending';
   };
+
+  // ==================== UPDATED STATUS DISPLAY LOGIC ====================
+ const shouldShowStatus = (item) => {
+  // Reminder sirf HR ko assign hai → sabko hide (creator + HR)
+  const assignedRoles = (item.assignedTo || '').split(', ').filter(Boolean);
+  const isOnlyHR = assignedRoles.length === 1 && assignedRoles[0] === 'HR';
+
+  if (isOnlyHR) {
+    return false;
+  }
+
+  // Reminder sirf current user ke khud ke liye hai (self-assigned by CEO/CTO)
+  // → creator ko status nahi dikhana
+  const isSelfAssigned = assignedRoles.length === 1 && assignedRoles[0] === currentUser;
+
+  if (isSelfAssigned && item.createdBy === currentUser) {
+    return false;
+  }
+
+  // Agar current user HR hai aur reminder uske liye nahi bana (dusre ne banaya)
+  if (currentUser === "HR" && item.createdBy !== currentUser) {
+    return false;
+  }
+
+  // Baqi sab cases mein dikhao (dusre ke liye banaya reminder)
+  return true;
+};
 
   // ==================== RENDER ====================
   return (
@@ -613,10 +634,8 @@ const UserManagement = () => {
                   </div>
                   <div className='h-[1px] bg-[#E5E5E5] my-3'></div>
                   
-                  {/* FIXED: Status sirf tab dikhao jab reminder SIRF HR ke liye nahi bana */}
-                  {item.status === 'pending' ? (
-                    // Agar reminder SIRF HR ke liye bana hai → status aur buttons HIDE
-                    item.assignedTo === "HR" || item.assignedTo === "" ? null : (
+                  {shouldShowStatus(item) && (
+                    item.status === 'pending' ? (
                       item.createdBy === currentUser ? (
                         <div className='flex justify-end'>
                           <span className='bg-[#F9FAFB] border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-xs font-medium'>
@@ -642,10 +661,7 @@ const UserManagement = () => {
                           </button>
                         </div>
                       )
-                    )
-                  ) : (
-                    // Approved/Rejected status bhi sirf tab dikhao jab HR ke liye nahi bana
-                    !item.assignedTo?.includes("HR") && (
+                    ) : (
                       <div className='flex justify-end items-center'>
                         <span
                           className={`font-medium text-sm ${
@@ -729,6 +745,8 @@ const UserManagement = () => {
                 </div>
               </div>
 
+              {/* ──────────────────────────────────────────────── */}
+              {/* Fixed input section – no extra wrappers, no stopPropagation */}
               <div className='grid grid-cols-2 gap-4'>
                 <div>
                   <label className='block text-sm font-medium text-gray-700 mb-1.5'>
@@ -768,6 +786,7 @@ const UserManagement = () => {
                   className='w-full border border-gray-300 outline-none focus:border-blue-500 rounded-lg px-3 py-2.5 text-sm cursor-pointer transition-colors'
                 />
               </div>
+              {/* ──────────────────────────────────────────────── */}
 
               <div className='relative'>
                 <label className='block text-sm font-medium text-gray-700 mb-1.5'>
@@ -785,12 +804,12 @@ const UserManagement = () => {
 
                 {newReminder.assignedEmails?.length > 0 && (
                   <div className='mt-2 flex flex-wrap gap-1.5'>
-                    {newReminder.assignTo.split(', ').map((name, index) => (
+                    {newReminder.assignTo.split(', ').map((role, index) => (
                       <span
                         key={index}
                         className='inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2.5 py-1 rounded-full'
                       >
-                        {name}
+                        {role}
                       </span>
                     ))}
                   </div>
@@ -828,8 +847,8 @@ const UserManagement = () => {
                                     className='w-4 h-4 text-blue-600 rounded focus:ring-blue-500'
                                   />
                                   <div className='flex-1'>
-                                    <p className='text-sm font-medium text-gray-900'>{user.name}</p>
-                                    <p className='text-xs text-gray-500'>{user.email}</p>
+                                    <p className='text-sm font-medium text-gray-900'>{user.email}</p>
+                                    <p className='text-xs text-gray-500'>{user.role}</p>
                                   </div>
                                 </label>
                               ))}
@@ -869,8 +888,8 @@ const UserManagement = () => {
                                     className='w-4 h-4 text-blue-600 rounded focus:ring-blue-500'
                                   />
                                   <div className='flex-1'>
-                                    <p className='text-sm font-medium text-gray-900'>{user.name}</p>
-                                    <p className='text-xs text-gray-500'>{user.email}</p>
+                                    <p className='text-sm font-medium text-gray-900'>{user.email}</p>
+                                    <p className='text-xs text-gray-500'>{user.role}</p>
                                   </div>
                                 </label>
                               ))}
@@ -910,8 +929,8 @@ const UserManagement = () => {
                                     className='w-4 h-4 text-blue-600 rounded focus:ring-blue-500'
                                   />
                                   <div className='flex-1'>
-                                    <p className='text-sm font-medium text-gray-900'>{user.name}</p>
-                                    <p className='text-xs text-gray-500'>{user.email}</p>
+                                    <p className='text-sm font-medium text-gray-900'>{user.email}</p>
+                                    <p className='text-xs text-gray-500'>{user.role}</p>
                                   </div>
                                 </label>
                               ))}

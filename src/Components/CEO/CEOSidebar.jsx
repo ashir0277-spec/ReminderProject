@@ -108,7 +108,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         <div className="border-t border-gray-700 mt-auto">
           <button
             onClick={() => setShowLogoutModal(true)}
-            className="flex items-center w-full px-5 py-4 text-left hover:bg-red-600 transition-colors duration-200"
+            className="flex items-center w-full px-5 py-4 text-left text-[#898989] hover:bg-[#1E2730] hover:text-white transition-colors duration-200"
           >
             <img src={logoutIcon} alt="logout" className="w-6 h-6" />
             <span className="ml-5 text-sm font-medium">Logout</span>
