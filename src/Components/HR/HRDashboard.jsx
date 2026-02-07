@@ -14,6 +14,8 @@ import {
 import { db } from "../../Components/firebase";
 import { toast, ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 const HRDashboard = () => {
   const [showModal, setShowModal] = useState(false);
@@ -26,9 +28,9 @@ const HRDashboard = () => {
     title: '',
     description: '',
     priority: 'Normal',
-    date: '',
-    time: '',
-    alertTime: '',
+    date: null,           // DatePicker ke liye null/initial Date object
+    time: null,           // TimePicker ke liye null/initial Date object
+    alertTime: null,
     assignTo: '',
     assignedEmails: []
   });
@@ -187,16 +189,9 @@ const HRDashboard = () => {
     }
 
     try {
-      // Roles selected by HR
       const assignedRoles = [...new Set(selectedUsers.map(u => u.role))];
-
-      // Include current user (HR) in sharedWith
-      const allSharedRoles = [...assignedRoles, currentUser]; // "HR" + selected roles
-
-      // Emails of selected users + current user email
+      const allSharedRoles = [...assignedRoles, currentUser];
       const allSharedEmails = [...new Set([...newReminder.assignedEmails, currentUserEmail])];
-
-      // Final sharedWith array (both roles and emails)
       const sharedWith = [...new Set([...allSharedRoles, ...allSharedEmails])];
 
       await addDoc(collection(db, "reminders"), {
@@ -204,12 +199,12 @@ const HRDashboard = () => {
         description: newReminder.description.trim(),
         priority: newReminder.priority,
         createdBy: currentUser,
-        assignedTo: newReminder.assignTo.trim(),           // e.g. "CTO, CEO"
-        assignedEmails: newReminder.assignedEmails,        // array of emails
-        sharedWith,                                        // both roles + emails
-        date: newReminder.date,
-        time: newReminder.time,
-        alertTime: newReminder.alertTime,
+        assignedTo: newReminder.assignTo.trim(),
+        assignedEmails: newReminder.assignedEmails,
+        sharedWith,
+        date: newReminder.date.toISOString().split('T')[0],      // YYYY-MM-DD format
+        time: newReminder.time.toTimeString().slice(0, 5),      // HH:MM
+        alertTime: newReminder.alertTime ? newReminder.alertTime.toTimeString().slice(0, 5) : null,
         status: "pending",
         starred: false,
         createdAt: serverTimestamp(),
@@ -220,7 +215,7 @@ const HRDashboard = () => {
       setShowModal(false);
       setNewReminder({
         title: '', description: '', priority: 'Normal',
-        date: '', time: '', alertTime: '', assignTo: '', assignedEmails: []
+        date: null, time: null, alertTime: null, assignTo: '', assignedEmails: []
       });
       setSelectedUsers([]);
       setSelectAllCTO(false);
@@ -233,7 +228,6 @@ const HRDashboard = () => {
     }
   };
 
-  // ==================== STATUS DISPLAY LOGIC ====================
   const shouldShowStatus = (item) => {
     const assignedRoles = (item.assignedTo || '').split(', ').filter(Boolean);
     const isOnlyHR = (assignedRoles.length === 0 || 
@@ -298,8 +292,7 @@ const HRDashboard = () => {
               <div className='flex gap-2'>
                 <img src={calendardate} className='w-4 h-4' alt="calendar" />
                 <p className='text-xs text-gray-700'>
-                  {new Date(item.date).toLocaleDateString()}
-                  {item.time && ` at ${item.time}`}
+                  {item.date} {item.time && `at ${item.time}`}
                 </p>
               </div>
 
@@ -321,7 +314,7 @@ const HRDashboard = () => {
         )}
       </div>
 
-      {/* ==================== MODAL ==================== */}
+      {/* ==================== CUSTOM DATE & TIME PICKER MODAL ==================== */}
       {showModal && (
         <div className='fixed inset-0 flex items-center justify-center z-50 p-4'>
           <div className='absolute inset-0 bg-black/50' onClick={() => setShowModal(false)} />
@@ -329,36 +322,36 @@ const HRDashboard = () => {
           <div className='relative bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 z-30'>
             <h2 className='text-xl font-semibold mb-6'>Create New Reminder</h2>
             
-            <div className='space-y-4'>
+            <div className='space-y-5'>
               <div>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>Title *</label>
+                <label className='block text-sm font-medium text-gray-700 mb-1.5'>Title *</label>
                 <input
                   name="title"
                   value={newReminder.title}
                   onChange={handleInputChange}
-                  className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500'
+                  className='w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
                   placeholder='Enter reminder title'
                 />
               </div>
 
               <div>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>Description</label>
+                <label className='block text-sm font-medium text-gray-700 mb-1.5'>Description</label>
                 <textarea
                   name="description"
                   value={newReminder.description}
                   onChange={handleInputChange}
-                  className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[80px] focus:outline-none focus:border-blue-500'
+                  className='w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm min-h-[90px] focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
                   placeholder='Optional description'
                 />
               </div>
 
               <div>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>Priority</label>
+                <label className='block text-sm font-medium text-gray-700 mb-1.5'>Priority</label>
                 <select
                   name="priority"
                   value={newReminder.priority}
                   onChange={handleInputChange}
-                  className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500'
+                  className='w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 appearance-none'
                 >
                   <option value="Normal">Normal</option>
                   <option value="High">High</option>
@@ -366,56 +359,73 @@ const HRDashboard = () => {
                 </select>
               </div>
 
-              <div className='grid grid-cols-2 gap-4'>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700 mb-1'>Date *</label>
-                  <input
-                    type="date"
-                    name="date"
-                    value={newReminder.date}
-                    onChange={handleInputChange}
-                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 cursor-pointer'
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700 mb-1'>Time *</label>
-                  <input
-                    type="time"
-                    name="time"
-                    value={newReminder.time}
-                    onChange={handleInputChange}
-                    className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 cursor-pointer'
-                  />
-                </div>
-              </div>
-
+              {/* Custom Date Picker */}
               <div>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>Alert Time</label>
-                <input
-                  type="time"
-                  name="alertTime"
-                  value={newReminder.alertTime}
-                  onChange={handleInputChange}
-                  className='w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 cursor-pointer'
+                <label className='block text-sm font-medium text-gray-700 mb-1.5'>Date *</label>
+                <DatePicker
+                  selected={newReminder.date}
+                  onChange={(date) => setNewReminder({ ...newReminder, date })}
+                  dateFormat="yyyy-MM-dd"
+                  placeholderText="Select date"
+                  className='w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer'
+                  wrapperClassName="w-full"
                 />
               </div>
 
+              {/* Custom Time Picker */}
+              <div>
+                <label className='block text-sm font-medium text-gray-700 mb-1.5'>Time *</label>
+                <DatePicker
+                  selected={newReminder.time}
+                  onChange={(time) => setNewReminder({ ...newReminder, time })}
+                  showTimeSelect
+                  showTimeSelectOnly
+                  timeIntervals={15}
+                  timeCaption="Time"
+                  dateFormat="h:mm aa"
+                  placeholderText="Select time"
+                  className='w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer'
+                  wrapperClassName="w-full"
+                />
+              </div>
+
+              {/* Custom Alert Time Picker */}
+              <div>
+                <label className='block text-sm font-medium text-gray-700 mb-1.5'>Alert Time</label>
+                <DatePicker
+                  selected={newReminder.alertTime}
+                  onChange={(alertTime) => setNewReminder({ ...newReminder, alertTime })}
+                  showTimeSelect
+                  showTimeSelectOnly
+                  timeIntervals={15}
+                  timeCaption="Alert Time"
+                  dateFormat="h:mm aa"
+                  placeholderText="Select alert time (optional)"
+                  className='w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer'
+                  wrapperClassName="w-full"
+                />
+              </div>
+
+              {/* Assign To Dropdown */}
               <div className='relative'>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>Assign To (optional)</label>
+                <label className='block text-sm font-medium text-gray-700 mb-1.5'>Assign To (optional)</label>
                 <div
                   onClick={() => setShowAssignDropdown(!showAssignDropdown)}
-                  className='w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm cursor-pointer hover:border-blue-500 bg-white flex justify-between items-center'
+                  className='w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm cursor-pointer hover:border-blue-500 bg-white flex justify-between items-center transition-colors'
                 >
                   <span className={newReminder.assignTo ? 'text-gray-900' : 'text-gray-400'}>
                     {newReminder.assignTo || 'Select users...'}
                   </span>
-                  {showAssignDropdown ? <IoChevronUp /> : <IoChevronDown />}
+                  {showAssignDropdown ? <IoChevronUp className='text-gray-500' /> : <IoChevronDown className='text-gray-500' />}
                 </div>
 
                 {newReminder.assignedEmails?.length > 0 && (
                   <div className='mt-2 flex flex-wrap gap-1.5'>
-                    {newReminder.assignTo.split(', ').map((role, i) => (
-                      <span key={i} className='bg-blue-50 text-blue-700 text-xs px-2.5 py-1 rounded-full'>
+                    {newReminder.assignTo.split(', ').map((role, index) => (
+                      <span
+                        key={index}
+                        className='inline-flex items-center bg-blue-50 text-blue-700 text-xs px-3 py-1 rounded-full'
+                      >
                         {role}
                       </span>
                     ))}
@@ -423,7 +433,7 @@ const HRDashboard = () => {
                 )}
 
                 {showAssignDropdown && (
-                  <div className='absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto'>
+                  <div className='absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-300 rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto'>
                     {/* HR Section */}
                     <div className='border-b border-gray-200'>
                       <div
@@ -434,7 +444,7 @@ const HRDashboard = () => {
                           HR {users.HR.length > 0 && `(${users.HR.length})`}
                         </span>
                         {users.HR.length > 1 && (
-                          expandedRole === 'HR' ? <IoChevronUp /> : <IoChevronForward />
+                          expandedRole === 'HR' ? <IoChevronUp className='text-gray-500' /> : <IoChevronForward className='text-gray-500' />
                         )}
                       </div>
                       {expandedRole === 'HR' && users.HR.length > 1 && (
@@ -444,7 +454,7 @@ const HRDashboard = () => {
                               type="checkbox"
                               checked={selectAllHR}
                               onChange={handleSelectAllHR}
-                              className='w-4 h-4 text-blue-600 rounded'
+                              className='w-4 h-4 text-blue-600 rounded focus:ring-blue-500'
                             />
                             <span className='text-sm font-medium text-blue-600'>Select All HR</span>
                           </label>
@@ -454,7 +464,7 @@ const HRDashboard = () => {
                                 type="checkbox"
                                 checked={selectedUsers.some(u => u.id === user.id)}
                                 onChange={() => toggleUserSelection(user)}
-                                className='w-4 h-4 text-blue-600 rounded'
+                                className='w-4 h-4 text-blue-600 rounded focus:ring-blue-500'
                               />
                               <div className='flex-1'>
                                 <p className='text-sm font-medium text-gray-900'>{user.email}</p>
@@ -476,7 +486,7 @@ const HRDashboard = () => {
                           CTO {users.CTO.length > 0 && `(${users.CTO.length})`}
                         </span>
                         {users.CTO.length > 1 && (
-                          expandedRole === 'CTO' ? <IoChevronUp /> : <IoChevronForward />
+                          expandedRole === 'CTO' ? <IoChevronUp className='text-gray-500' /> : <IoChevronForward className='text-gray-500' />
                         )}
                       </div>
                       {expandedRole === 'CTO' && users.CTO.length > 1 && (
@@ -486,7 +496,7 @@ const HRDashboard = () => {
                               type="checkbox"
                               checked={selectAllCTO}
                               onChange={handleSelectAllCTO}
-                              className='w-4 h-4 text-blue-600 rounded'
+                              className='w-4 h-4 text-blue-600 rounded focus:ring-blue-500'
                             />
                             <span className='text-sm font-medium text-blue-600'>Select All CTO</span>
                           </label>
@@ -496,7 +506,7 @@ const HRDashboard = () => {
                                 type="checkbox"
                                 checked={selectedUsers.some(u => u.id === user.id)}
                                 onChange={() => toggleUserSelection(user)}
-                                className='w-4 h-4 text-blue-600 rounded'
+                                className='w-4 h-4 text-blue-600 rounded focus:ring-blue-500'
                               />
                               <div className='flex-1'>
                                 <p className='text-sm font-medium text-gray-900'>{user.email}</p>
@@ -518,7 +528,7 @@ const HRDashboard = () => {
                           CEO {users.CEO.length > 0 && `(${users.CEO.length})`}
                         </span>
                         {users.CEO.length > 1 && (
-                          expandedRole === 'CEO' ? <IoChevronUp /> : <IoChevronForward />
+                          expandedRole === 'CEO' ? <IoChevronUp className='text-gray-500' /> : <IoChevronForward className='text-gray-500' />
                         )}
                       </div>
                       {expandedRole === 'CEO' && users.CEO.length > 1 && (
@@ -529,7 +539,7 @@ const HRDashboard = () => {
                                 type="checkbox"
                                 checked={selectedUsers.some(u => u.id === user.id)}
                                 onChange={() => toggleUserSelection(user)}
-                                className='w-4 h-4 text-blue-600 rounded'
+                                className='w-4 h-4 text-blue-600 rounded focus:ring-blue-500'
                               />
                               <div className='flex-1'>
                                 <p className='text-sm font-medium text-gray-900'>{user.email}</p>
@@ -549,13 +559,13 @@ const HRDashboard = () => {
                             setSelectAllCTO(false);
                             setSelectAllHR(false);
                           }}
-                          className='flex-1 px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium'
+                          className='flex-1 px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium transition-colors'
                         >
                           Clear
                         </button>
                         <button
                           onClick={confirmAssignment}
-                          className='flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium'
+                          className='flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors'
                         >
                           Confirm ({selectedUsers.length})
                         </button>
@@ -569,13 +579,13 @@ const HRDashboard = () => {
             <div className='flex gap-3 mt-8'>
               <button
                 onClick={() => setShowModal(false)}
-                className='flex-1 bg-gray-200 hover:bg-gray-300 px-4 py-2.5 rounded-lg text-sm font-medium'
+                className='flex-1 bg-gray-200 hover:bg-gray-300 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors'
               >
                 Cancel
               </button>
               <button
                 onClick={createReminder}
-                className='flex-1 bg-[#0081FFFC] hover:bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium'
+                className='flex-1 bg-[#0081FFFC] hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors'
               >
                 Create Reminder
               </button>

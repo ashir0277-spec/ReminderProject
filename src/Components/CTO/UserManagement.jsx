@@ -3,12 +3,20 @@ import MiniCalendar from '../../Calendar';
 import user01 from '../../assets/user-01.svg';
 import calendardate from '../../assets/calendar-date.svg';
 import star from '../../assets/star.svg';
-import { IoAddOutline } from "react-icons/io5";
-import { IoChevronDown, IoChevronForward, IoChevronUp } from "react-icons/io5";
-import { collection, getDocs, addDoc, updateDoc, doc, serverTimestamp } from "firebase/firestore";
+import { IoAddOutline, IoChevronDown, IoChevronUp, IoChevronForward } from "react-icons/io5";
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  doc,
+  serverTimestamp
+} from "firebase/firestore";
 import { db } from '../firebase';
 import { toast, ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 const UserManagement = () => {
   const [selectedDate, setSelectedDate] = useState(null);
@@ -42,9 +50,9 @@ const UserManagement = () => {
     title: '',
     description: '',
     priority: 'Normal',
-    date: '',
-    time: '',
-    alertTime: '',
+    date: null,          // Date object for DatePicker
+    time: null,          // Date object for TimePicker
+    alertTime: null,
     assignTo: '',
     assignedEmails: []
   });
@@ -262,9 +270,9 @@ const UserManagement = () => {
         title: newReminder.title,
         description: newReminder.description,
         priority: newReminder.priority,
-        date: newReminder.date,
-        time: newReminder.time,
-        alertTime: newReminder.alertTime,
+        date: newReminder.date.toISOString().split('T')[0], // Save as YYYY-MM-DD
+        time: newReminder.time ? newReminder.time.toTimeString().slice(0, 5) : null,
+        alertTime: newReminder.alertTime ? newReminder.alertTime.toTimeString().slice(0, 5) : null,
         createdBy: currentUser,
         status: 'pending',
         starred: false,
@@ -278,6 +286,9 @@ const UserManagement = () => {
       setReminders(prev => [...prev, {
         id: docRef.id,
         ...newReminder,
+        date: newReminder.date.toISOString().split('T')[0],
+        time: newReminder.time ? newReminder.time.toTimeString().slice(0, 5) : null,
+        alertTime: newReminder.alertTime ? newReminder.alertTime.toTimeString().slice(0, 5) : null,
         assignedTo: newReminder.assignTo.trim(),
         assignedEmails,
         createdBy: currentUser,
@@ -293,9 +304,9 @@ const UserManagement = () => {
         title: '',
         description: '',
         priority: 'Normal',
-        date: '',
-        time: '',
-        alertTime: '',
+        date: null,
+        time: null,
+        alertTime: null,
         assignTo: '',
         assignedEmails: []
       });
@@ -465,7 +476,7 @@ const UserManagement = () => {
 
   const filteredReminders = reminders
     .filter(filterByTab)
-    .filter(r => !selectedDate || new Date(r.date).toDateString() === selectedDate.toDateString())
+    .filter(r => !selectedDate || (r.date && new Date(r.date).toDateString() === selectedDate.toDateString()))
     .sort((a, b) => getPriorityValue(b.priority) - getPriorityValue(a.priority));
 
   const getStatusText = item => {
@@ -474,32 +485,26 @@ const UserManagement = () => {
     return 'Pending';
   };
 
-  // ==================== UPDATED STATUS DISPLAY LOGIC ====================
- const shouldShowStatus = (item) => {
-  // Reminder sirf HR ko assign hai → sabko hide (creator + HR)
-  const assignedRoles = (item.assignedTo || '').split(', ').filter(Boolean);
-  const isOnlyHR = assignedRoles.length === 1 && assignedRoles[0] === 'HR';
+  const shouldShowStatus = (item) => {
+    const assignedRoles = (item.assignedTo || '').split(', ').filter(Boolean);
+    const isOnlyHR = assignedRoles.length === 1 && assignedRoles[0] === 'HR';
 
-  if (isOnlyHR) {
-    return false;
-  }
+    if (isOnlyHR) {
+      return false;
+    }
 
-  // Reminder sirf current user ke khud ke liye hai (self-assigned by CEO/CTO)
-  // → creator ko status nahi dikhana
-  const isSelfAssigned = assignedRoles.length === 1 && assignedRoles[0] === currentUser;
+    const isSelfAssigned = assignedRoles.length === 1 && assignedRoles[0] === currentUser;
 
-  if (isSelfAssigned && item.createdBy === currentUser) {
-    return false;
-  }
+    if (isSelfAssigned && item.createdBy === currentUser) {
+      return false;
+    }
 
-  // Agar current user HR hai aur reminder uske liye nahi bana (dusre ne banaya)
-  if (currentUser === "HR" && item.createdBy !== currentUser) {
-    return false;
-  }
+    if (currentUser === "HR" && item.createdBy !== currentUser) {
+      return false;
+    }
 
-  // Baqi sab cases mein dikhao (dusre ke liye banaya reminder)
-  return true;
-};
+    return true;
+  };
 
   // ==================== RENDER ====================
   return (
@@ -612,7 +617,7 @@ const UserManagement = () => {
                     <div className='flex gap-2 items-center'>
                       <img src={calendardate} className='w-4 h-4' alt="calendar" />
                       <p className='text-xs text-gray-700'>
-                        {new Date(item.date).toLocaleDateString()}
+                        {item.date}
                         {item.time && ` at ${item.time}`}
                       </p>
                     </div>
@@ -689,7 +694,7 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {/* ==================== CREATE REMINDER MODAL ==================== */}
+      {/* ==================== CREATE REMINDER MODAL WITH CUSTOM PICKERS ==================== */}
       {showModal && (
         <div className='fixed inset-0 flex items-center justify-center z-50 p-4'>
           <div
@@ -698,7 +703,7 @@ const UserManagement = () => {
           ></div>
           <div className='relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 z-30'>
             <h2 className='text-xl font-semibold mb-6'>Create New Reminder</h2>
-            <div className='space-y-4'>
+            <div className='space-y-5'>
               
               <div>
                 <label className='block text-sm font-medium text-gray-700 mb-1.5'>
@@ -708,7 +713,7 @@ const UserManagement = () => {
                   name="title"
                   value={newReminder.title}
                   onChange={handleInputChange}
-                  className='w-full border border-gray-300 outline-none focus:border-blue-500 rounded-lg px-3 py-2.5 text-sm transition-colors'
+                  className='w-full border border-gray-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg px-4 py-2.5 text-sm transition-colors'
                   placeholder='Enter reminder title'
                 />
               </div>
@@ -721,7 +726,7 @@ const UserManagement = () => {
                   name="description"
                   value={newReminder.description}
                   onChange={handleInputChange}
-                  className='w-full border border-gray-300 outline-none focus:border-blue-500 rounded-lg px-3 py-2.5 text-sm min-h-[80px] resize-none transition-colors'
+                  className='w-full border border-gray-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg px-4 py-2.5 text-sm min-h-[80px] resize-none transition-colors'
                   placeholder='Enter description (optional)'
                 />
               </div>
@@ -735,7 +740,7 @@ const UserManagement = () => {
                     name="priority"
                     value={newReminder.priority}
                     onChange={handleInputChange}
-                    className='w-full border border-gray-300 outline-none focus:border-blue-500 rounded-lg px-3 py-2.5 text-sm appearance-none cursor-pointer transition-colors bg-white'
+                    className='w-full border border-gray-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg px-4 py-2.5 text-sm appearance-none cursor-pointer transition-colors bg-white'
                   >
                     <option value="Normal">Normal</option>
                     <option value="High">High</option>
@@ -745,56 +750,67 @@ const UserManagement = () => {
                 </div>
               </div>
 
-              {/* ──────────────────────────────────────────────── */}
-              {/* Fixed input section – no extra wrappers, no stopPropagation */}
-              <div className='grid grid-cols-2 gap-4'>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700 mb-1.5'>
-                    Date <span className='text-red-500'>*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="date"
-                    value={newReminder.date}
-                    onChange={handleInputChange}
-                    className='w-full border border-gray-300 outline-none focus:border-blue-500 rounded-lg px-3 py-2.5 text-sm cursor-pointer transition-colors'
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-gray-700 mb-1.5'>
-                    Time
-                  </label>
-                  <input
-                    type="time"
-                    name="time"
-                    value={newReminder.time}
-                    onChange={handleInputChange}
-                    className='w-full border border-gray-300 outline-none focus:border-blue-500 rounded-lg px-3 py-2.5 text-sm cursor-pointer transition-colors'
-                  />
-                </div>
+              {/* Custom Date Picker */}
+              <div>
+                <label className='block text-sm font-medium text-gray-700 mb-1.5'>
+                  Date <span className='text-red-500'>*</span>
+                </label>
+                <DatePicker
+                  selected={newReminder.date}
+                  onChange={(date) => setNewReminder({ ...newReminder, date })}
+                  dateFormat="yyyy-MM-dd"
+                  placeholderText="Select date"
+                  className='w-full border border-gray-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg px-4 py-2.5 text-sm transition-colors cursor-pointer'
+                  wrapperClassName="w-full"
+                />
               </div>
 
+              {/* Custom Time Picker */}
+              <div>
+                <label className='block text-sm font-medium text-gray-700 mb-1.5'>
+                  Time
+                </label>
+                <DatePicker
+                  selected={newReminder.time}
+                  onChange={(time) => setNewReminder({ ...newReminder, time })}
+                  showTimeSelect
+                  showTimeSelectOnly
+                  timeIntervals={15}
+                  timeCaption="Time"
+                  dateFormat="h:mm aa"
+                  placeholderText="Select time"
+                  className='w-full border border-gray-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg px-4 py-2.5 text-sm transition-colors cursor-pointer'
+                  wrapperClassName="w-full"
+                />
+              </div>
+
+              {/* Custom Alert Time Picker */}
               <div>
                 <label className='block text-sm font-medium text-gray-700 mb-1.5'>
                   Alert Time
                 </label>
-                <input
-                  type="time"
-                  name="alertTime"
-                  value={newReminder.alertTime}
-                  onChange={handleInputChange}
-                  className='w-full border border-gray-300 outline-none focus:border-blue-500 rounded-lg px-3 py-2.5 text-sm cursor-pointer transition-colors'
+                <DatePicker
+                  selected={newReminder.alertTime}
+                  onChange={(alertTime) => setNewReminder({ ...newReminder, alertTime })}
+                  showTimeSelect
+                  showTimeSelectOnly
+                  timeIntervals={15}
+                  timeCaption="Alert Time"
+                  dateFormat="h:mm aa"
+                  placeholderText="Select alert time (optional)"
+                  className='w-full border border-gray-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg px-4 py-2.5 text-sm transition-colors cursor-pointer'
+                  wrapperClassName="w-full"
                 />
               </div>
-              {/* ──────────────────────────────────────────────── */}
 
+              {/* Assign To Dropdown */}
               <div className='relative'>
                 <label className='block text-sm font-medium text-gray-700 mb-1.5'>
                   Assign To
                 </label>
                 <div
                   onClick={() => setShowAssignDropdown(!showAssignDropdown)}
-                  className='w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm cursor-pointer hover:border-blue-500 bg-white flex justify-between items-center transition-colors'
+                  className='w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm cursor-pointer hover:border-blue-500 bg-white flex justify-between items-center transition-colors'
                 >
                   <span className={newReminder.assignTo ? 'text-gray-900' : 'text-gray-400'}>
                     {newReminder.assignTo || 'Select users to assign...'}
@@ -960,7 +976,7 @@ const UserManagement = () => {
                 )}
               </div>
 
-              <div className='flex gap-3 mt-6'>
+              <div className='flex gap-3 mt-8'>
                 <button
                   onClick={() => {
                     setShowModal(false);
@@ -968,13 +984,13 @@ const UserManagement = () => {
                     setSelectAllHR(false);
                     setSelectAllCTO(false);
                   }}
-                  className='flex-1 px-4 py-2.5 rounded-lg bg-gray-200 hover:bg-gray-300 text-sm font-medium transition-colors'
+                  className='flex-1 bg-gray-200 hover:bg-gray-300 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors'
                 >
                   Cancel
                 </button>
                 <button
                   onClick={createReminder}
-                  className='flex-1 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors'
+                  className='flex-1 bg-[#0081FFFC] hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors'
                 >
                   Create Reminder
                 </button>
