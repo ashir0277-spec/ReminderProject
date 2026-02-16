@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import MiniCalendar from '../../Calendar';
+import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
 import user01 from '../../assets/user-01.svg';
 import calendardate from '../../assets/calendar-date.svg';
 import star from '../../assets/star.svg';
-import { IoAddOutline, IoChevronDown, IoChevronUp, IoChevronForward } from "react-icons/io5";
+import { IoAddOutline, IoChevronDown, IoChevronUp, IoChevronForward, IoTrashOutline } from "react-icons/io5";
 import {
   collection,
   getDocs,
   addDoc,
   updateDoc,
+  deleteDoc,
   doc,
   serverTimestamp
 } from "firebase/firestore";
@@ -19,7 +21,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
 const UserManagement = () => {
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null); // Start with all reminders
   const [activeTab, setActiveTab] = useState('my');
   
   const [reminders, setReminders] = useState([]);
@@ -28,6 +30,8 @@ const UserManagement = () => {
   const [showModal, setShowModal] = useState(false);
   const [approveModal, setApproveModal] = useState({ show: false, reminderId: null });
   const [rejectModal, setRejectModal] = useState({ show: false, reminderId: null, reason: '' });
+  const [deleteModal, setDeleteModal] = useState({ show: false, reminderId: null });
+  const [expandedReminder, setExpandedReminder] = useState(null);
   
   const [notificationPopup, setNotificationPopup] = useState({ show: false, reminder: null });
   const [snoozePopup, setSnoozePopup] = useState({ show: false, reminder: null });
@@ -50,8 +54,8 @@ const UserManagement = () => {
     title: '',
     description: '',
     priority: 'Normal',
-    date: null,          // Date object for DatePicker
-    time: null,          // Date object for TimePicker
+    date: null,
+    time: null,
     alertTime: null,
     assignTo: '',
     assignedEmails: []
@@ -238,6 +242,24 @@ const UserManagement = () => {
     }
   };
 
+  // ==================== DELETE REMINDER ====================
+  const handleDeleteClick = (id) => {
+    setDeleteModal({ show: true, reminderId: id });
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await deleteDoc(doc(db, "reminders", deleteModal.reminderId));
+      setReminders(prev => prev.filter(r => r.id !== deleteModal.reminderId));
+      toast.success("Reminder deleted successfully!");
+      setExpandedReminder(null);
+    } catch (err) {
+      toast.error("Failed to delete reminder");
+      console.error(err);
+    }
+    setDeleteModal({ show: false, reminderId: null });
+  };
+
   // ==================== REMINDER CREATION ====================
   const handleInputChange = e => {
     setNewReminder({ ...newReminder, [e.target.name]: e.target.value });
@@ -270,7 +292,7 @@ const UserManagement = () => {
         title: newReminder.title,
         description: newReminder.description,
         priority: newReminder.priority,
-        date: newReminder.date.toISOString().split('T')[0], // Save as YYYY-MM-DD
+        date: newReminder.date.toISOString().split('T')[0],
         time: newReminder.time ? newReminder.time.toTimeString().slice(0, 5) : null,
         alertTime: newReminder.alertTime ? newReminder.alertTime.toTimeString().slice(0, 5) : null,
         createdBy: currentUser,
@@ -474,6 +496,7 @@ const UserManagement = () => {
     return true;
   };
 
+  // Show reminders for selected date, or all reminders if no date selected
   const filteredReminders = reminders
     .filter(filterByTab)
     .filter(r => !selectedDate || (r.date && new Date(r.date).toDateString() === selectedDate.toDateString()))
@@ -506,9 +529,82 @@ const UserManagement = () => {
     return true;
   };
 
+  // Toggle reminder expansion
+  const toggleReminderExpansion = (id) => {
+    setExpandedReminder(expandedReminder === id ? null : id);
+  };
+
   // ==================== RENDER ====================
   return (
-    <div className='bg-white mt-6 overflow-hidden rounded-xl px-4 relative'>
+    <>
+      <style>{`
+        .reminders-scroll-container::-webkit-scrollbar {
+          width: 8px;
+        }
+        
+        .reminders-scroll-container::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 10px;
+        }
+        
+        .reminders-scroll-container::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 10px;
+        }
+        
+        .reminders-scroll-container::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+
+        /* Calendar Styling */
+        .react-calendar {
+          border: none;
+          border-radius: 12px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          font-family: inherit;
+          width: 100%;
+          max-width: 350px;
+        }
+
+        .react-calendar__tile--active {
+          background: #0081FFFC !important;
+          color: white !important;
+        }
+
+        .react-calendar__tile--now {
+          background: #e0f2fe;
+        }
+
+        .react-calendar__tile:enabled:hover {
+          background: #f0f9ff;
+        }
+
+        .react-calendar__navigation button {
+          font-size: 16px;
+          font-weight: 600;
+        }
+
+        /* Remove underline from day names */
+        .react-calendar__month-view__weekdays {
+          text-decoration: none;
+          border-bottom: none;
+        }
+
+        .react-calendar__month-view__weekdays__weekday {
+          text-decoration: none;
+        }
+
+        .react-calendar__month-view__weekdays__weekday abbr {
+          text-decoration: none;
+        }
+
+        /* Keep weekend colors same as weekdays */
+        .react-calendar__month-view__days__day--weekend {
+          color: inherit;
+        }
+      `}</style>
+      
+      <div className='bg-white mt-6 overflow-hidden rounded-xl px-4 relative'>
       <ToastContainer />
       
       {/* HEADER & TABS */}
@@ -552,13 +648,17 @@ const UserManagement = () => {
       {/* CALENDAR & REMINDERS LIST */}
       <div className='md:flex gap-6'>
         <div className='md:w-auto'>
-          <MiniCalendar selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
+          <Calendar
+            onChange={setSelectedDate}
+            value={selectedDate}
+            className="react-calendar"
+          />
           {selectedDate && (
             <button
               onClick={() => setSelectedDate(null)}
               className='mt-3 w-full text-sm text-blue-600 hover:text-blue-800 font-medium'
             >
-              Clear Date Filter
+              Show All Reminders
             </button>
           )}
         </div>
@@ -574,119 +674,160 @@ const UserManagement = () => {
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
             </div>
           ) : filteredReminders.length > 0 ? (
-            <div className='max-h-[600px] overflow-y-auto pr-2' style={{scrollbarWidth: 'thin', scrollbarColor: '#cbd5e0 #f7fafc'}}>
-              {filteredReminders.map(item => (
-                <div
-                  key={item.id}
-                  className='w-full border border-[#E5E5E5] rounded-lg mt-4 p-4 hover:shadow-md transition-shadow'
-                >
-                  <div className='flex justify-between items-start'>
-                    <p className='text-sm font-semibold'>{item.title}</p>
-                    <span
-                      className={`text-xs font-medium px-2 py-1 rounded ${
-                        item.priority === 'Very High' ? 'bg-red-100 text-red-600' :
-                        item.priority === 'High' ? 'bg-orange-100 text-orange-600' :
-                        'bg-blue-100 text-blue-600'
-                      }`}
-                    >
-                      {item.priority}
-                    </span>
-                  </div>
-                  {item.description && (
-                    <p className='text-xs text-gray-600 mt-2'>{item.description}</p>
-                  )}
-                  <div className='flex gap-2 pt-3'>
-                    <img src={user01} className='w-5 h-5' alt="user" />
-                    <p className='text-xs text-gray-600'>
-                      Created by: <span className='font-medium'>{item.createdBy}</span>
-                    </p>
-                  </div>
+            <div className='reminders-scroll-container max-h-[600px] overflow-y-auto pr-2'>
+              {filteredReminders.map(item => {
+                const isExpanded = expandedReminder === item.id;
+                
+                return (
+                  <div
+                    key={item.id}
+                    className='w-full border border-[#E5E5E5] rounded-lg mt-4 p-4 hover:shadow-md transition-all cursor-pointer'
+                    onClick={() => toggleReminderExpansion(item.id)}
+                  >
+                    <div className='flex justify-between items-start'>
+                      <p className='text-sm font-semibold'>{item.title}</p>
+                      <span
+                        className={`text-xs font-medium px-2 py-1 rounded ${
+                          item.priority === 'Very High' ? 'bg-red-100 text-red-600' :
+                          item.priority === 'High' ? 'bg-orange-100 text-orange-600' :
+                          'bg-blue-100 text-blue-600'
+                        }`}
+                      >
+                        {item.priority}
+                      </span>
+                    </div>
+                    
+                    {item.description && (
+                      <p className='text-xs text-gray-600 mt-2'>{item.description}</p>
+                    )}
 
-                  {(item.assignedTo || (item.assignedEmails && item.assignedEmails.length > 0)) && (
-                    <div className='flex gap-2 pt-2'>
-                      <img src={user01} className='w-5 h-5' alt="assigned" />
+                    <div className='flex gap-2 pt-3'>
+                      <img src={user01} className='w-5 h-5' alt="user" />
                       <p className='text-xs text-gray-600'>
-                        Assigned to: <span className='font-medium text-blue-600'>
-                          {item.assignedTo || item.assignedEmails.join(', ')}
-                        </span>
+                        Created by: <span className='font-medium'>{item.createdBy}</span>
                       </p>
                     </div>
-                  )}
 
-                  <div className='flex justify-between items-center pt-3'>
-                    <div className='flex gap-2 items-center'>
-                      <img src={calendardate} className='w-4 h-4' alt="calendar" />
-                      <p className='text-xs text-gray-700'>
-                        {item.date}
-                        {item.time && ` at ${item.time}`}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => toggleStar(item.id, item.starred)}
-                      className='transition-transform hover:scale-110 active:scale-95'
-                    >
-                      <img
-                        src={star}
-                        className='w-5 h-5'
-                        alt="star"
-                        style={{
-                          filter: item.starred
-                            ? 'invert(66%) sepia(93%) saturate(1352%) brightness(95%) contrast(101%)'
-                            : 'grayscale(100%) opacity(40%)'
-                        }}
-                      />
-                    </button>
-                  </div>
-                  <div className='h-[1px] bg-[#E5E5E5] my-3'></div>
-                  
-                  {shouldShowStatus(item) && (
-                    item.status === 'pending' ? (
-                      item.createdBy === currentUser ? (
-                        <div className='flex justify-end'>
-                          <span className='bg-[#F9FAFB] border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-xs font-medium'>
-                            Pending
+                    {(item.assignedTo || (item.assignedEmails && item.assignedEmails.length > 0)) && (
+                      <div className='flex gap-2 pt-2'>
+                        <img src={user01} className='w-5 h-5' alt="assigned" />
+                        <p className='text-xs text-gray-600'>
+                          Assigned to: <span className='font-medium text-blue-600'>
+                            {item.assignedTo || item.assignedEmails.join(', ')}
                           </span>
-                        </div>
-                      ) : (
-                        <div className='flex gap-2 flex-wrap'>
-                          <button
-                            onClick={() => handleApproveClick(item.id)}
-                            className='bg-[#22C55E] hover:bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors'
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleRejectClick(item.id)}
-                            className='bg-[#EF4444] hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors'
-                          >
-                            Reject
-                          </button>
-                          <button className='bg-[#F9FAFB] border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-xs font-medium cursor-default'>
-                            Pending
-                          </button>
-                        </div>
-                      )
-                    ) : (
-                      <div className='flex justify-end items-center'>
-                        <span
-                          className={`font-medium text-sm ${
-                            item.status === 'approved' ? 'text-green-600' : 'text-red-600'
-                          }`}
-                        >
-                          {getStatusText(item)}
-                        </span>
+                        </p>
                       </div>
-                    )
-                  )}
-                </div>
-              ))}
+                    )}
+
+                    {item.alertTime && (
+                      <div className='flex gap-2 items-center pt-2'>
+                        <span className='text-xs text-gray-600'>⏰</span>
+                        <p className='text-xs text-gray-600'>
+                          Alert Time: <span className='font-medium'>{item.alertTime}</span>
+                        </p>
+                      </div>
+                    )}
+                    
+                    <div className='flex justify-between items-center pt-3'>
+                      <div className='flex gap-2 items-center'>
+                        <img src={calendardate} className='w-4 h-4' alt="calendar" />
+                        <p className='text-xs text-gray-700'>
+                          {item.date}
+                          {item.time && ` at ${item.time}`}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleStar(item.id, item.starred);
+                        }}
+                        className='transition-transform hover:scale-110 active:scale-95'
+                      >
+                        <img
+                          src={star}
+                          className='w-5 h-5'
+                          alt="star"
+                          style={{
+                            filter: item.starred
+                              ? 'invert(66%) sepia(93%) saturate(1352%) brightness(95%) contrast(101%)'
+                              : 'grayscale(100%) opacity(40%)'
+                          }}
+                        />
+                      </button>
+                    </div>
+
+                    {!isExpanded && (
+                      <div className='flex justify-center pt-2'>
+                        <p className='text-[10px] text-gray-400 italic'>Click here to see details</p>
+                      </div>
+                    )}
+
+                    {/* Expanded Content - Delete and Actions */}
+                    {isExpanded && (
+                      <div className='mt-3 pt-3 border-t border-gray-200'>
+                        <div className='flex justify-between items-center'>
+                          {shouldShowStatus(item) && (
+                            item.status === 'pending' ? (
+                              item.createdBy === currentUser ? (
+                                <span className='bg-[#F9FAFB] border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-xs font-medium'>
+                                  Pending
+                                </span>
+                              ) : (
+                                <div className='flex gap-2 flex-wrap'>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleApproveClick(item.id);
+                                    }}
+                                    className='bg-[#22C55E] hover:bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors'
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRejectClick(item.id);
+                                    }}
+                                    className='bg-[#EF4444] hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors'
+                                  >
+                                    Reject
+                                  </button>
+                                </div>
+                              )
+                            ) : (
+                              <span
+                                className={`font-medium text-sm ${
+                                  item.status === 'approved' ? 'text-green-600' : 'text-red-600'
+                                }`}
+                              >
+                                {getStatusText(item)}
+                              </span>
+                            )
+                          )}
+                          
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteClick(item.id);
+                            }}
+                            className='bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 ml-auto'
+                          >
+                            <IoTrashOutline className='text-base' />
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className='text-center py-10 bg-gray-50 rounded-lg'>
               <p className='text-gray-500 text-lg'>📭 No reminders found</p>
               <p className='text-gray-400 text-sm mt-2'>
-                {selectedDate
-                  ? 'Try selecting a different date or clearing the filter'
+                {selectedDate 
+                  ? `No reminders found on ${selectedDate.toLocaleDateString()}`
                   : 'Create your first reminder to get started'}
               </p>
             </div>
@@ -1044,6 +1185,25 @@ const UserManagement = () => {
         </div>
       )}
 
+      {/* Delete Modal */}
+      {deleteModal.show && (
+        <div className='fixed inset-0 flex items-center justify-center z-50 p-4'>
+          <div className='absolute inset-0 bg-black/50' onClick={() => setDeleteModal({ show: false, reminderId: null })}></div>
+          <div className='relative bg-white p-6 rounded-xl w-full max-w-md'>
+            <h2 className='text-xl font-semibold'>Delete Reminder</h2>
+            <p className='text-gray-600 mt-2 text-sm'>Are you sure you want to delete this reminder? This action cannot be undone.</p>
+            <div className='flex justify-end gap-3 mt-6'>
+              <button onClick={() => setDeleteModal({ show: false, reminderId: null })} className='bg-gray-200 px-4 py-2 rounded text-gray-700'>
+                Cancel
+              </button>
+              <button onClick={confirmDelete} className='bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-white transition-colors'>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Notification Popup */}
       {notificationPopup.show && (
         <div className='fixed top-5 right-5 bg-white shadow-xl rounded-xl p-4 w-80 z-50 border-2 border-blue-500'>
@@ -1083,6 +1243,7 @@ const UserManagement = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
 
