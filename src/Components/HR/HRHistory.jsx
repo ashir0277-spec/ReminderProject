@@ -13,6 +13,7 @@ import { db } from "../firebase";
 import { IoEllipsisVertical, IoTrashOutline, IoCheckboxOutline } from "react-icons/io5";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { Clock, User, Users } from "lucide-react";
 
 const HRHistory = () => {
   const [history, setHistory] = useState([]);
@@ -279,7 +280,7 @@ const HRHistory = () => {
         <div className="history-scroll-container min-h-screen mx-4 mt-6 space-y-4 overflow-y-auto max-h-[600px] pr-2">
           {filteredHistory.length === 0 ? (
             <div className="text-center py-10 bg-gray-50 rounded-lg">
-              <p className="text-gray-500 text-lg">📭 No reminder history available</p>
+              <p className="text-gray-500 text-lg"> No reminder history available</p>
               <p className="text-gray-400 text-sm mt-2">
                 {activeTab === 'ceo' ? 'No CEO reminders found' : 
                  activeTab === 'cto' ? 'No CTO reminders found' : 
@@ -319,7 +320,7 @@ const HRHistory = () => {
 
                     {!isExpanded && (
                       <div className="flex justify-center pt-1">
-                        <p className="text-[10px] text-gray-400 italic">Click to see details</p>
+                        <p className="text-[10px] text-gray-400 italic"> see more</p>
                       </div>
                     )}
                   </div>
@@ -354,8 +355,8 @@ const HRHistory = () => {
 
                       {item.alertTime && (
                         <div className="mb-2">
-                          <p className="text-xs text-gray-600">
-                            ⏰ Alert Time: <span className="font-medium">{item.alertTime}</span>
+                          <p className="text-xs text-gray-600 flex gap-2">
+                            <Clock size={15}/> Alert Time: <span className="font-medium">{item.alertTime}</span>
                           </p>
                         </div>
                       )}
@@ -363,15 +364,15 @@ const HRHistory = () => {
                       {item.priority && (
                         <div className="mb-2">
                           <p className="text-xs text-gray-600">
-                            ⚡ Priority: <span className="font-medium">{item.priority}</span>
+                             Priority: <span className="font-medium">{item.priority}</span>
                           </p>
                         </div>
                       )}
 
                       {item.createdBy && (
                         <div className="mb-2">
-                          <p className="text-xs text-gray-600">
-                            👤 Created By: <span className="font-medium">{item.createdBy}</span>
+                          <p className="text-xs text-gray-600 flex gap-2">
+                            <User size={15}/> Created By: <span className="font-medium">{item.createdBy}</span>
                           </p>
                         </div>
                       )}

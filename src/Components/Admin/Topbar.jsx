@@ -1,3 +1,4 @@
+import { Bell } from 'lucide-react';
 import searchicon from '../../assets/search.svg'
 
 const Topbar = ({ onMenuClick }) => {
@@ -7,7 +8,7 @@ const Topbar = ({ onMenuClick }) => {
   };
 
   return (
-    <div className="fixed top-0 left-0 lg:left-[280px] z-20 h-16 w-full lg:w-[calc(100%-280px)] border-b border-gray-300 flex items-center justify-between lg:justify-end px-4 lg:pr-16 bg-white">
+    <div className="fixed  top-0 left-0 lg:left-[280px] z-20 h-16 w-full lg:w-[calc(100%-280px)] border-b border-gray-300 flex items-center justify-between lg:justify-end px-4 lg:pr-10 gap-3 lg:gap-7 bg-white">
       {/* Hamburger button */}
       <button
         onClick={handleClick}
@@ -45,6 +46,7 @@ const Topbar = ({ onMenuClick }) => {
           className="w-full pl-12 pr-4 text-sm outline-none border border-[#E3E4E7] py-3 rounded-lg focus:border-[#0081FF] focus:ring-2 focus:ring-[#0081FF]/20 transition-all"
         />
       </div>
+       <Bell className=''/>
     </div>
   )
 }

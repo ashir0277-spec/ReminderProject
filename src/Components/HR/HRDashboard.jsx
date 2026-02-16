@@ -20,6 +20,7 @@ import { toast, ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { Clock } from 'lucide-react';
 
 const HRDashboard = () => {
   const [showModal, setShowModal] = useState(false);
@@ -363,7 +364,7 @@ const HRDashboard = () => {
         {filteredReminders.length === 0 ? (
           <p className="text-center text-gray-400 mt-10">No reminders found</p>
         ) : (
-          <div className='reminders-scroll-container max-h-[600px] overflow-y-auto pr-2'>
+          <div className='reminders-scroll-container max-h-[600px] overflow-y-auto pr-2' style={{scrollbarWidth:'none'}}>
             {filteredReminders.map((item) => {
               const isExpanded = expandedReminder === item.id;
               
@@ -385,7 +386,7 @@ const HRDashboard = () => {
                   )}
 
                   <div className='flex gap-2 mt-3'>
-                    <img src={user01} className='w-5 h-5' alt="user" />
+                    <img src={user01} className='' alt="user" />
                     <p className='text-xs text-gray-600'>
                       Created by: <span className='font-medium'>{item.createdBy}</span>
                     </p>
@@ -398,8 +399,9 @@ const HRDashboard = () => {
                   )}
 
                   {item.alertTime && (
-                    <p className='text-xs text-gray-600 mt-2'>
-                      ⏰ Alert Time: <span className='font-medium'>{item.alertTime}</span>
+                    <p className='text-xs text-gray-600 mt-2 flex gap-2'>
+                      <Clock size={15}/>
+                       Alert Time: <span className='font-medium'>{item.alertTime}</span>
                     </p>
                   )}
 
@@ -432,7 +434,7 @@ const HRDashboard = () => {
 
                   {!isExpanded && (
                     <div className='flex justify-center pt-2'>
-                      <p className='text-[10px] text-gray-400 italic'>Click to see details</p>
+                      <p className='text-[10px] text-gray-400 italic'> see more</p>
                     </div>
                   )}
 
@@ -564,13 +566,13 @@ const HRDashboard = () => {
               </div>
 
               <div>
-                <label className='block text-sm font-medium text-gray-700 mb-1.5'>Time *</label>
+                <label className='block text-sm font-medium text-gray-700 mb-1.5'>Due Time *</label>
                 <DatePicker
                   selected={newReminder.time}
                   onChange={(time) => setNewReminder({ ...newReminder, time })}
                   showTimeSelect
                   showTimeSelectOnly
-                  timeIntervals={15}
+                  timeIntervals={5}
                   timeCaption="Time"
                   dateFormat="h:mm aa"
                   placeholderText="Select time"
@@ -586,7 +588,7 @@ const HRDashboard = () => {
                   onChange={(alertTime) => setNewReminder({ ...newReminder, alertTime })}
                   showTimeSelect
                   showTimeSelectOnly
-                  timeIntervals={15}
+                  timeIntervals={5}
                   timeCaption="Alert Time"
                   dateFormat="h:mm aa"
                   placeholderText="Select alert time (optional)"
