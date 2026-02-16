@@ -4,13 +4,13 @@ import 'react-calendar/dist/Calendar.css';
 import user01 from '../../assets/user-01.svg';
 import calendardate from '../../assets/calendar-date.svg';
 import star from '../../assets/star.svg';
-import { IoAddOutline, IoChevronDown, IoChevronUp, IoChevronForward, IoTrashOutline } from "react-icons/io5";
+import { IoAddOutline, IoChevronDown, IoChevronUp, IoChevronForward } from "react-icons/io5";
+import { Clock } from 'lucide-react';
 import {
   collection,
   getDocs,
   addDoc,
   updateDoc,
-  deleteDoc,
   doc,
   serverTimestamp
 } from "firebase/firestore";
@@ -21,7 +21,8 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
 const UserManagement = () => {
-  const [selectedDate, setSelectedDate] = useState(null); // Start with all reminders
+  // Auto-select current date on initial load
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState('my');
   
   const [reminders, setReminders] = useState([]);
@@ -30,8 +31,6 @@ const UserManagement = () => {
   const [showModal, setShowModal] = useState(false);
   const [approveModal, setApproveModal] = useState({ show: false, reminderId: null });
   const [rejectModal, setRejectModal] = useState({ show: false, reminderId: null, reason: '' });
-  const [deleteModal, setDeleteModal] = useState({ show: false, reminderId: null });
-  const [expandedReminder, setExpandedReminder] = useState(null);
   
   const [notificationPopup, setNotificationPopup] = useState({ show: false, reminder: null });
   const [snoozePopup, setSnoozePopup] = useState({ show: false, reminder: null });
@@ -242,24 +241,6 @@ const UserManagement = () => {
     }
   };
 
-  // ==================== DELETE REMINDER ====================
-  const handleDeleteClick = (id) => {
-    setDeleteModal({ show: true, reminderId: id });
-  };
-
-  const confirmDelete = async () => {
-    try {
-      await deleteDoc(doc(db, "reminders", deleteModal.reminderId));
-      setReminders(prev => prev.filter(r => r.id !== deleteModal.reminderId));
-      toast.success("Reminder deleted successfully!");
-      setExpandedReminder(null);
-    } catch (err) {
-      toast.error("Failed to delete reminder");
-      console.error(err);
-    }
-    setDeleteModal({ show: false, reminderId: null });
-  };
-
   // ==================== REMINDER CREATION ====================
   const handleInputChange = e => {
     setNewReminder({ ...newReminder, [e.target.name]: e.target.value });
@@ -344,8 +325,15 @@ const UserManagement = () => {
   };
 
   // ==================== APPROVE / REJECT HANDLERS ====================
-  const handleApproveClick = id => setApproveModal({ show: true, reminderId: id });
-  const handleRejectClick = id => setRejectModal({ show: true, reminderId: id, reason: '' });
+  const handleApproveClick = (id, e) => {
+    e.stopPropagation();
+    setApproveModal({ show: true, reminderId: id });
+  };
+  
+  const handleRejectClick = (id, e) => {
+    e.stopPropagation();
+    setRejectModal({ show: true, reminderId: id, reason: '' });
+  };
 
   const confirmApprove = async () => {
     await updateStatus(approveModal.reminderId, 'approved');
@@ -400,7 +388,9 @@ const UserManagement = () => {
           const alertDateTime = new Date(`${r.date}T${r.alertTime}`);
           const timeDiff = alertDateTime - now;
           
+          // Show notification if alert time is within 1 minute ahead or 5 minutes past
           if (timeDiff <= 60000 && timeDiff >= -300000) {
+            console.log('🔔 Showing notification for:', r.title, 'Alert time:', r.alertTime);
             setNotificationPopup({ show: true, reminder: r });
             setShownNotifications(prev => new Set([...prev, r.id]));
           }
@@ -408,8 +398,10 @@ const UserManagement = () => {
       });
     };
     
+    // Run immediately
     checkAlerts();
-    const interval = setInterval(checkAlerts, 30000);
+    // Check every 10 seconds for better responsiveness
+    const interval = setInterval(checkAlerts, 10000);
     return () => clearInterval(interval);
   }, [reminders, shownNotifications, currentUser]);
 
@@ -428,7 +420,7 @@ const UserManagement = () => {
         r.id === notificationPopup.reminder.id ? { ...r, dismissed: true } : r
       ));
       
-      toast.info("Reminder dismissed");
+      toast.info("✓ Reminder dismissed");
     } catch (err) {
       toast.error("Failed to dismiss reminder");
       console.error(err);
@@ -527,11 +519,6 @@ const UserManagement = () => {
     }
 
     return true;
-  };
-
-  // Toggle reminder expansion
-  const toggleReminderExpansion = (id) => {
-    setExpandedReminder(expandedReminder === id ? null : id);
   };
 
   // ==================== RENDER ====================
@@ -647,7 +634,7 @@ const UserManagement = () => {
 
       {/* CALENDAR & REMINDERS LIST */}
       <div className='md:flex gap-6'>
-        <div className='md:w-auto'>
+        <div className='md:w-auto pb-10'>
           <Calendar
             onChange={setSelectedDate}
             value={selectedDate}
@@ -674,15 +661,12 @@ const UserManagement = () => {
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
             </div>
           ) : filteredReminders.length > 0 ? (
-            <div className='reminders-scroll-container max-h-[600px] overflow-y-auto pr-2'>
+            <div className='reminders-scroll-container max-h-[600px] overflow-y-auto pr-2' style={{scrollbarWidth:'none'}}>
               {filteredReminders.map(item => {
-                const isExpanded = expandedReminder === item.id;
-                
                 return (
                   <div
                     key={item.id}
-                    className='w-full border border-[#E5E5E5] rounded-lg mt-4 p-4 hover:shadow-md transition-all cursor-pointer'
-                    onClick={() => toggleReminderExpansion(item.id)}
+                    className='w-full border border-[#E5E5E5] rounded-lg mt-4 p-4 hover:shadow-md transition-all'
                   >
                     <div className='flex justify-between items-start'>
                       <p className='text-sm font-semibold'>{item.title}</p>
@@ -721,7 +705,7 @@ const UserManagement = () => {
 
                     {item.alertTime && (
                       <div className='flex gap-2 items-center pt-2'>
-                        <span className='text-xs text-gray-600'>⏰</span>
+                        <Clock size={15} className='text-gray-600'/>
                         <p className='text-xs text-gray-600'>
                           Alert Time: <span className='font-medium'>{item.alertTime}</span>
                         </p>
@@ -756,65 +740,40 @@ const UserManagement = () => {
                       </button>
                     </div>
 
-                    {!isExpanded && (
-                      <div className='flex justify-center pt-2'>
-                        <p className='text-[10px] text-gray-400 italic'>Click here to see details</p>
-                      </div>
-                    )}
-
-                    {/* Expanded Content - Delete and Actions */}
-                    {isExpanded && (
+                    {/* Status Section */}
+                    {shouldShowStatus(item) && (
                       <div className='mt-3 pt-3 border-t border-gray-200'>
-                        <div className='flex justify-between items-center'>
-                          {shouldShowStatus(item) && (
-                            item.status === 'pending' ? (
-                              item.createdBy === currentUser ? (
-                                <span className='bg-[#F9FAFB] border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-xs font-medium'>
-                                  Pending
-                                </span>
-                              ) : (
-                                <div className='flex gap-2 flex-wrap'>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleApproveClick(item.id);
-                                    }}
-                                    className='bg-[#22C55E] hover:bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors'
-                                  >
-                                    Approve
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleRejectClick(item.id);
-                                    }}
-                                    className='bg-[#EF4444] hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors'
-                                  >
-                                    Reject
-                                  </button>
-                                </div>
-                              )
-                            ) : (
-                              <span
-                                className={`font-medium text-sm ${
-                                  item.status === 'approved' ? 'text-green-600' : 'text-red-600'
-                                }`}
-                              >
-                                {getStatusText(item)}
+                        <div className='flex justify-end items-center'>
+                          {item.status === 'pending' ? (
+                            item.createdBy === currentUser ? (
+                              <span className='bg-[#F9FAFB] border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-xs font-medium'>
+                                Pending
                               </span>
+                            ) : (
+                              <div className='flex gap-2 flex-wrap'>
+                                <button
+                                  onClick={(e) => handleApproveClick(item.id, e)}
+                                  className='bg-[#22C55E] hover:bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors'
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={(e) => handleRejectClick(item.id, e)}
+                                  className='bg-[#EF4444] hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors'
+                                >
+                                  Reject
+                                </button>
+                              </div>
                             )
+                          ) : (
+                            <span
+                              className={`font-medium text-sm ${
+                                item.status === 'approved' ? 'text-green-600' : 'text-red-600'
+                              }`}
+                            >
+                              {getStatusText(item)}
+                            </span>
                           )}
-                          
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteClick(item.id);
-                            }}
-                            className='bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 ml-auto'
-                          >
-                            <IoTrashOutline className='text-base' />
-                            Delete
-                          </button>
                         </div>
                       </div>
                     )}
@@ -842,7 +801,7 @@ const UserManagement = () => {
             className='absolute inset-0 bg-black/50'
             onClick={() => setShowModal(false)}
           ></div>
-          <div className='relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 z-30'>
+          <div className='relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 z-30'style={{scrollbarWidth:"none"}}>
             <h2 className='text-xl font-semibold mb-6'>Create New Reminder</h2>
             <div className='space-y-5'>
               
@@ -1145,14 +1104,14 @@ const UserManagement = () => {
       {approveModal.show && (
         <div className='fixed inset-0 flex items-center justify-center z-50 p-4'>
           <div className='absolute inset-0 bg-black/50' onClick={() => setApproveModal({ show: false, reminderId: null })}></div>
-          <div className='relative bg-white p-6 rounded-xl w-full max-w-md'>
-            <h2 className='text-xl font-semibold'>Approve Request</h2>
+          <div className='relative bg-white p-6 rounded-xl w-full max-w-md shadow-2xl'>
+            <h2 className='text-xl font-semibold text-gray-800'>Approve Reminder</h2>
             <p className='text-gray-600 mt-2 text-sm'>Are you sure you want to approve this reminder?</p>
             <div className='flex justify-end gap-3 mt-6'>
-              <button onClick={() => setApproveModal({ show: false, reminderId: null })} className='bg-gray-200 px-4 py-2 rounded text-gray-700'>
+              <button onClick={() => setApproveModal({ show: false, reminderId: null })} className='bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-lg text-gray-700 font-medium transition-colors'>
                 Cancel
               </button>
-              <button onClick={confirmApprove} className='bg-green-500 px-4 py-2 rounded text-white'>
+              <button onClick={confirmApprove} className='bg-green-500 hover:bg-green-600 px-5 py-2 rounded-lg text-white font-medium transition-colors'>
                 Confirm
               </button>
             </div>
@@ -1164,20 +1123,20 @@ const UserManagement = () => {
       {rejectModal.show && (
         <div className='fixed inset-0 flex items-center justify-center z-50 p-4'>
           <div className='absolute inset-0 bg-black/50' onClick={() => setRejectModal({ show: false, reminderId: null, reason: '' })}></div>
-          <div className='relative bg-white p-6 rounded-xl w-full max-w-md'>
-            <h2 className='text-xl font-semibold'>Provide Reason</h2>
+          <div className='relative bg-white p-6 rounded-xl w-full max-w-md shadow-2xl'>
+            <h2 className='text-xl font-semibold text-gray-800'>Reject Reminder</h2>
             <p className='text-gray-600 mt-2 text-sm'>Please provide a reason for rejecting this reminder</p>
             <textarea
               value={rejectModal.reason}
               onChange={e => setRejectModal({ ...rejectModal, reason: e.target.value })}
-              placeholder='Enter your Reason...'
-              className='w-full border border-gray-300 rounded-md mt-2 p-2 text-sm'
+              placeholder='Enter your reason...'
+              className='w-full border border-gray-300 rounded-lg mt-3 p-3 text-sm min-h-[100px] focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
             />
             <div className='flex justify-end gap-3 mt-4'>
-              <button onClick={() => setRejectModal({ show: false, reminderId: null, reason: '' })} className='bg-gray-200 px-4 py-2 rounded text-gray-700'>
+              <button onClick={() => setRejectModal({ show: false, reminderId: null, reason: '' })} className='bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-lg text-gray-700 font-medium transition-colors'>
                 Cancel
               </button>
-              <button onClick={submitReject} className='bg-red-500 px-4 py-2 rounded text-white'>
+              <button onClick={submitReject} className='bg-red-500 hover:bg-red-600 px-5 py-2 rounded-lg text-white font-medium transition-colors'>
                 Submit
               </button>
             </div>
@@ -1185,58 +1144,76 @@ const UserManagement = () => {
         </div>
       )}
 
-      {/* Delete Modal */}
-      {deleteModal.show && (
-        <div className='fixed inset-0 flex items-center justify-center z-50 p-4'>
-          <div className='absolute inset-0 bg-black/50' onClick={() => setDeleteModal({ show: false, reminderId: null })}></div>
-          <div className='relative bg-white p-6 rounded-xl w-full max-w-md'>
-            <h2 className='text-xl font-semibold'>Delete Reminder</h2>
-            <p className='text-gray-600 mt-2 text-sm'>Are you sure you want to delete this reminder? This action cannot be undone.</p>
-            <div className='flex justify-end gap-3 mt-6'>
-              <button onClick={() => setDeleteModal({ show: false, reminderId: null })} className='bg-gray-200 px-4 py-2 rounded text-gray-700'>
-                Cancel
-              </button>
-              <button onClick={confirmDelete} className='bg-red-500 hover:bg-red-600 px-4 py-2 rounded text-white transition-colors'>
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Notification Popup */}
+      {/* Notification Popup - Enhanced */}
       {notificationPopup.show && (
-        <div className='fixed top-5 right-5 bg-white shadow-xl rounded-xl p-4 w-80 z-50 border-2 border-blue-500'>
-          <div className='flex items-start gap-2 mb-2'>
-            <span className='text-2xl'>⏰</span>
+        <div className='fixed top-5 right-5 bg-white shadow-2xl rounded-xl p-5 w-96 z-[9999] border-3 border-blue-500 animate-slideIn'>
+          <div className='flex items-start gap-3 mb-3'>
+            <div className='w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0'>
+              <span className='text-2xl'>⏰</span>
+            </div>
             <div className='flex-1'>
-              <p className='font-semibold text-base'>{notificationPopup.reminder.title}</p>
+              <p className='font-bold text-base text-gray-900'>{notificationPopup.reminder.title}</p>
               <p className='text-gray-600 text-sm mt-1'>{notificationPopup.reminder.description}</p>
             </div>
           </div>
-          <div className='flex justify-end gap-2 mt-3'>
-            <button onClick={handleSnooze} className='bg-blue-500 px-3 py-1 text-white rounded text-xs hover:bg-blue-600 transition-colors'>
-              Snooze
+          
+          <div className='bg-gray-50 rounded-lg p-3 space-y-2 text-xs text-gray-600 mb-3'>
+            <div className='flex items-center gap-2'>
+              <span className='font-semibold'>📅 Date:</span>
+              <span>{notificationPopup.reminder.date}</span>
+            </div>
+            {notificationPopup.reminder.time && (
+              <div className='flex items-center gap-2'>
+                <span className='font-semibold'>🕒 Time:</span>
+                <span>{notificationPopup.reminder.time}</span>
+              </div>
+            )}
+            {notificationPopup.reminder.alertTime && (
+              <div className='flex items-center gap-2'>
+                <span className='font-semibold'>⏰ Alert:</span>
+                <span>{notificationPopup.reminder.alertTime}</span>
+              </div>
+            )}
+          </div>
+          
+          <div className='flex justify-end gap-2'>
+            <button 
+              onClick={handleSnooze} 
+              className='bg-blue-500 hover:bg-blue-600 px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors shadow-sm'
+            >
+              ⏰ Snooze
             </button>
-            <button onClick={handleDismiss} className='bg-gray-200 px-3 py-1 text-gray-700 rounded text-xs hover:bg-gray-300 transition-colors'>
-              Dismiss
+            <button 
+              onClick={handleDismiss} 
+              className='bg-gray-200 hover:bg-gray-300 px-4 py-2 text-gray-700 rounded-lg text-sm font-medium transition-colors'
+            >
+              ✓ Dismiss
             </button>
           </div>
         </div>
       )}
 
-      {/* Snooze Popup */}
+      {/* Snooze Popup - Enhanced */}
       {snoozePopup.show && (
-        <div className='fixed top-20 right-5 bg-white shadow-xl rounded-xl p-4 w-60 z-50 border border-gray-200'>
-          <p className='font-semibold mb-3'>Snooze for how long?</p>
+        <div className='fixed top-24 right-5 bg-white shadow-2xl rounded-xl p-5 w-72 z-[9999] border border-gray-200'>
+          <p className='font-bold text-gray-800 mb-4 text-center'>⏰ Snooze for how long?</p>
           <div className='flex flex-col gap-2'>
-            <button onClick={() => confirmSnooze(2)} className='bg-blue-500 hover:bg-blue-600 px-3 py-2 text-white rounded text-sm transition-colors'>
+            <button 
+              onClick={() => confirmSnooze(2)} 
+              className='bg-blue-500 hover:bg-blue-600 px-4 py-2.5 text-white rounded-lg text-sm font-medium transition-colors shadow-sm'
+            >
               2 minutes
             </button>
-            <button onClick={() => confirmSnooze(15)} className='bg-blue-500 hover:bg-blue-600 px-3 py-2 text-white rounded text-sm transition-colors'>
+            <button 
+              onClick={() => confirmSnooze(15)} 
+              className='bg-blue-500 hover:bg-blue-600 px-4 py-2.5 text-white rounded-lg text-sm font-medium transition-colors shadow-sm'
+            >
               15 minutes
             </button>
-            <button onClick={() => setSnoozePopup({ show: false, reminder: null })} className='bg-gray-200 hover:bg-gray-300 px-3 py-2 text-gray-700 rounded text-sm transition-colors'>
+            <button 
+              onClick={() => setSnoozePopup({ show: false, reminder: null })} 
+              className='bg-gray-200 hover:bg-gray-300 px-4 py-2.5 text-gray-700 rounded-lg text-sm font-medium transition-colors'
+            >
               Cancel
             </button>
           </div>

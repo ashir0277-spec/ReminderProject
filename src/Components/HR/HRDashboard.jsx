@@ -3,13 +3,12 @@ import Sidebar from './HrSidebar';
 import user01 from '../../assets/user-01.svg';
 import calendardate from '../../assets/calendar-date.svg';
 import star from '../../assets/star.svg';
-import { IoAddOutline, IoChevronDown, IoChevronUp, IoChevronForward, IoTrashOutline } from "react-icons/io5";
+import { IoAddOutline, IoChevronDown, IoChevronUp, IoChevronForward } from "react-icons/io5";
 import {
   collection,
   addDoc,
   getDocs,
   updateDoc,
-  deleteDoc,
   doc,
   query,
   where,
@@ -25,8 +24,6 @@ import { Clock } from 'lucide-react';
 const HRDashboard = () => {
   const [showModal, setShowModal] = useState(false);
   const [reminders, setReminders] = useState([]);
-  const [expandedReminder, setExpandedReminder] = useState(null);
-  const [deleteModal, setDeleteModal] = useState({ show: false, reminderId: null });
   const [activeTab, setActiveTab] = useState('my');
   
   const currentUser = sessionStorage.getItem('userRole') || "HR";
@@ -182,25 +179,48 @@ const HRDashboard = () => {
 
   const createReminder = async () => {
     if (!newReminder.title.trim()) {
-      toast.error("Please enter a title for the reminder.");
+      toast.error("Please enter a title for the reminder.", {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      });
       return;
     }
 
     if (!newReminder.date) {
-      toast.error("Please select a date.");
+      toast.error("Please select a date.", {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      });
       return;
     }
 
     if (!newReminder.time) {
-      toast.error("Please select a time.");
+      toast.error("Please select a time.", {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      });
       return;
     }
 
     try {
       const assignedRoles = [...new Set(selectedUsers.map(u => u.role))];
-      const allSharedRoles = [...assignedRoles, currentUser];
-      const allSharedEmails = [...new Set([...newReminder.assignedEmails, currentUserEmail])];
-      const sharedWith = [...new Set([...allSharedRoles, ...allSharedEmails])];
+      
+      // Fixed: Only include current user in sharedWith if assigning to others
+      const sharedWith = selectedUsers.length > 0 
+        ? [...new Set([...assignedRoles, currentUser])]
+        : [currentUser]; // If no one assigned, only current user
 
       await addDoc(collection(db, "reminders"), {
         title: newReminder.title.trim(),
@@ -218,7 +238,14 @@ const HRDashboard = () => {
         createdAt: serverTimestamp(),
       });
 
-      toast.success("Reminder created successfully!");
+      toast.success("Reminder created successfully!", {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      });
       
       setShowModal(false);
       setNewReminder({
@@ -232,7 +259,14 @@ const HRDashboard = () => {
       fetchReminders();
     } catch (error) {
       console.error("Create error:", error);
-      toast.error("Failed to create reminder. Please try again.");
+      toast.error("Failed to create reminder. Please try again.", {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      });
     }
   };
 
@@ -247,32 +281,25 @@ const HRDashboard = () => {
       setReminders(prev => prev.map(r =>
         r.id === id ? { ...r, starred: !currentStarred } : r
       ));
-      toast.success(!currentStarred ? "⭐ Starred!" : "Star removed");
+      toast.success(!currentStarred ? "⭐ Starred!" : "Star removed", {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      });
     } catch (err) {
-      toast.error("Failed to update star");
+      toast.error("Failed to update star", {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      });
       console.error(err);
     }
-  };
-
-  const handleDeleteClick = (id) => {
-    setDeleteModal({ show: true, reminderId: id });
-  };
-
-  const confirmDelete = async () => {
-    try {
-      await deleteDoc(doc(db, "reminders", deleteModal.reminderId));
-      setReminders(prev => prev.filter(r => r.id !== deleteModal.reminderId));
-      toast.success("Reminder deleted successfully!");
-      setExpandedReminder(null);
-    } catch (err) {
-      toast.error("Failed to delete reminder");
-      console.error(err);
-    }
-    setDeleteModal({ show: false, reminderId: null });
-  };
-
-  const toggleReminderExpansion = (id) => {
-    setExpandedReminder(expandedReminder === id ? null : id);
   };
 
   const shouldShowStatus = (item) => {
@@ -287,14 +314,31 @@ const HRDashboard = () => {
     return true;
   };
 
+  // Fixed filter logic
   const filterByTab = (reminder) => {
-    if (activeTab === 'my') return reminder.createdBy === currentUser;
-    if (activeTab === 'sharedWithMe') return reminder.sharedWith?.includes(currentUser) && reminder.createdBy !== currentUser;
-    if (activeTab === 'sharedByMe') return reminder.createdBy === currentUser && reminder.sharedWith?.length > 0;
+    if (activeTab === 'my') {
+      // My Reminders: Only show reminders I created
+      return reminder.createdBy === currentUser;
+    }
+    if (activeTab === 'sharedWithMe') {
+      // Shared With Me: Reminders others created and shared with me
+      return reminder.sharedWith?.includes(currentUser) && reminder.createdBy !== currentUser;
+    }
+    if (activeTab === 'sharedByMe') {
+      // Shared By Me: Reminders I created AND assigned to others (not just to myself)
+      return reminder.createdBy === currentUser && 
+             reminder.assignedTo && 
+             reminder.assignedTo.trim() !== '';
+    }
     return true;
   };
 
   const filteredReminders = reminders.filter(filterByTab);
+
+  // Calculate counts properly
+  const myRemindersCount = reminders.filter(r => r.createdBy === currentUser).length;
+  const sharedWithMeCount = reminders.filter(r => r.sharedWith?.includes(currentUser) && r.createdBy !== currentUser).length;
+  const sharedByMeCount = reminders.filter(r => r.createdBy === currentUser && r.assignedTo && r.assignedTo.trim() !== '').length;
 
   return (
     <>
@@ -318,7 +362,7 @@ const HRDashboard = () => {
         }
       `}</style>
 
-      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
+      <ToastContainer />
       <Sidebar />
 
       <div className='rounded-md min-h-screen border border-[#E2E4E7] p-3'>
@@ -333,7 +377,7 @@ const HRDashboard = () => {
           </button>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs - Fixed */}
         <div className='flex gap-2 mb-5 whitespace-nowrap overflow-x-auto' style={{scrollbarWidth: 'none'}}>
           <button
             className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
@@ -341,7 +385,7 @@ const HRDashboard = () => {
             }`}
             onClick={() => setActiveTab('my')}
           >
-            My Reminders ({reminders.filter(r => r.createdBy === currentUser).length})
+            My Reminders ({myRemindersCount})
           </button>
           <button
             className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
@@ -349,7 +393,7 @@ const HRDashboard = () => {
             }`}
             onClick={() => setActiveTab('sharedWithMe')}
           >
-            Shared With Me ({reminders.filter(r => r.sharedWith?.includes(currentUser) && r.createdBy !== currentUser).length})
+            Shared With Me ({sharedWithMeCount})
           </button>
           <button
             className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
@@ -357,7 +401,7 @@ const HRDashboard = () => {
             }`}
             onClick={() => setActiveTab('sharedByMe')}
           >
-            Shared By Me ({reminders.filter(r => r.createdBy === currentUser && r.sharedWith?.length > 0).length})
+            Shared By Me ({sharedByMeCount})
           </button>
         </div>
 
@@ -366,13 +410,10 @@ const HRDashboard = () => {
         ) : (
           <div className='reminders-scroll-container max-h-[600px] overflow-y-auto pr-2' style={{scrollbarWidth:'none'}}>
             {filteredReminders.map((item) => {
-              const isExpanded = expandedReminder === item.id;
-              
               return (
                 <div
                   key={item.id}
-                  className='border border-[#E5E5E5] shadow-md px-4 py-4 mt-6 rounded-lg cursor-pointer hover:shadow-lg transition-shadow'
-                  onClick={() => toggleReminderExpansion(item.id)}
+                  className='border border-[#E5E5E5] shadow-md px-4 py-4 mt-6 rounded-lg hover:shadow-lg transition-shadow'
                 >
                   <div className='flex justify-between'>
                     <h1 className='text-sm font-semibold'>{item.title}</h1>
@@ -432,40 +473,19 @@ const HRDashboard = () => {
                     </button>
                   </div>
 
-                  {!isExpanded && (
-                    <div className='flex justify-center pt-2'>
-                      <p className='text-[10px] text-gray-400 italic'> see more</p>
-                    </div>
-                  )}
-
-                  {isExpanded && (
-                    <>
-                      <div className='h-[1px] bg-[#E5E5E5] my-3'></div>
-                      
-                      <div className='flex justify-between items-center'>
-                        {shouldShowStatus(item) && item.createdBy === currentUser && (
-                          <span
-                            className={`font-medium text-sm ${
-                              item.status === 'approved' ? 'text-green-600' : item.status === 'reject' ? 'text-red-600' : 'text-orange-600'
-                            }`}
-                          >
-                            {item.status === 'approved' ? '✓ Approved' : item.status === 'reject' ? '✗ Rejected' : 'Pending'}
-                          </span>
-                        )}
-                        
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClick(item.id);
-                          }}
-                          className='bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 ml-auto'
-                        >
-                          <IoTrashOutline className='text-base' />
-                          Delete
-                        </button>
-                      </div>
-                    </>
-                  )}
+                  <div className='h-[1px] bg-[#E5E5E5] my-3'></div>
+                  
+                  <div className='flex justify-end items-center'>
+                    {shouldShowStatus(item) && item.createdBy === currentUser && (
+                      <span
+                        className={`font-medium text-sm ${
+                          item.status === 'approved' ? 'text-green-600' : item.status === 'reject' ? 'text-red-600' : 'text-orange-600'
+                        }`}
+                      >
+                        {item.status === 'approved' ? '✓ Approved' : item.status === 'reject' ? '✗ Rejected' : 'Pending'}
+                      </span>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -473,47 +493,12 @@ const HRDashboard = () => {
         )}
       </div>
 
-      {/* Delete Modal */}
-      {deleteModal.show && (
-        <div className='fixed inset-0 flex items-center justify-center z-50 p-4'>
-          <div className='absolute inset-0 bg-black/50' onClick={() => setDeleteModal({ show: false, reminderId: null })}></div>
-          <div className='relative bg-white p-6 rounded-xl w-full max-w-md shadow-2xl'>
-            <div className='flex items-center gap-3 mb-4'>
-              <div className='w-12 h-12 bg-red-100 rounded-full flex items-center justify-center'>
-                <IoTrashOutline className='text-2xl text-red-600' />
-              </div>
-              <div>
-                <h2 className='text-xl font-semibold text-gray-800'>Delete Reminder</h2>
-                <p className='text-sm text-gray-500'>This action cannot be undone</p>
-              </div>
-            </div>
-            <p className='text-gray-600 text-sm mb-6'>
-              Are you sure you want to delete this reminder?
-            </p>
-            <div className='flex justify-end gap-3'>
-              <button
-                onClick={() => setDeleteModal({ show: false, reminderId: null })}
-                className='bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-lg text-gray-700 font-medium transition-colors'
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                className='bg-red-500 hover:bg-red-600 px-5 py-2 rounded-lg text-white font-medium transition-colors'
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Create Reminder Modal - Same as before */}
+      {/* Create Reminder Modal */}
       {showModal && (
         <div className='fixed inset-0 flex items-center justify-center z-50 p-4'>
           <div className='absolute inset-0 bg-black/50' onClick={() => setShowModal(false)} />
           
-          <div className='relative bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 z-30'>
+          <div className='relative bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 z-30' style={{scrollbarWidth:'none'}}>
             <h2 className='text-xl font-semibold mb-6'>Create New Reminder</h2>
             
             <div className='space-y-5'>
@@ -597,7 +582,7 @@ const HRDashboard = () => {
                 />
               </div>
 
-              {/* Assign To Dropdown - Same as before */}
+              {/* Assign To Dropdown */}
               <div className='relative'>
                 <label className='block text-sm font-medium text-gray-700 mb-1.5'>Assign To (optional)</label>
                 <div
@@ -624,7 +609,7 @@ const HRDashboard = () => {
                 )}
 
                 {showAssignDropdown && (
-                  <div className='absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-300 rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto'>
+                  <div className='absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-300 rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto' style={{scrollbarWidth:'none'}}>
                     {/* HR Section */}
                     <div className='border-b border-gray-200'>
                       <div

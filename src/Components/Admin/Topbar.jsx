@@ -46,7 +46,7 @@ const Topbar = ({ onMenuClick }) => {
           className="w-full pl-12 pr-4 text-sm outline-none border border-[#E3E4E7] py-3 rounded-lg focus:border-[#0081FF] focus:ring-2 focus:ring-[#0081FF]/20 transition-all"
         />
       </div>
-       <Bell className=''/>
+       
     </div>
   )
 }

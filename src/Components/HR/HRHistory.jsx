@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import HrSidebar from "./HrSidebar";  // FIXED: Changed from Sidebar to HrSidebar
+import HrSidebar from "./HrSidebar";
 import {
   collection,
   onSnapshot,
@@ -8,22 +8,25 @@ import {
   orderBy,
   deleteDoc,
   doc,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../firebase";
-import { IoEllipsisVertical, IoTrashOutline, IoCheckboxOutline } from "react-icons/io5";
+import { IoEllipsisVertical, IoTrashOutline, IoCheckboxOutline, IoClose } from "react-icons/io5";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { Clock, User, Users } from "lucide-react";
+import { Clock, User } from "lucide-react";
 
 const HRHistory = () => {
   const [history, setHistory] = useState([]);
-  const [expandedReminder, setExpandedReminder] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [selectedItems, setSelectedItems] = useState([]);
+  const [selectionMode, setSelectionMode] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ show: false, reminderId: null, isMultiple: false, deleting: false });
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('hrHistoryTab') || 'all';
   });
+  const [activePopup, setActivePopup] = useState(null);
+  const [detailsModal, setDetailsModal] = useState({ show: false, reminder: null });
   
   const currentUser = "HR";
 
@@ -50,57 +53,125 @@ const HRHistory = () => {
     return () => unsubscribe();
   }, []);
 
-  const toggleReminderExpansion = (id) => {
-    setExpandedReminder(expandedReminder === id ? null : id);
-  };
-
-  const toggleSelection = (id) => {
+  const toggleSelection = (id, e) => {
+    e.stopPropagation();
     setSelectedItems(prev => 
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
   };
 
   const handleSelectAll = () => {
-    if (selectedItems.length === filteredHistory.length && filteredHistory.length > 0) {
-      setSelectedItems([]);
-    } else {
-      setSelectedItems(filteredHistory.map(item => item.id));
-    }
+    setSelectionMode(true);
+    setSelectedItems(filteredHistory.map(item => item.id));
+    setShowMenu(false);
   };
 
-  const handleDeleteClick = (id) => {
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedItems([]);
+  };
+
+  const handleDeleteClick = (id, e) => {
+    e.stopPropagation();
+    setActivePopup(null);
+    setDetailsModal({ show: false, reminder: null });
     setDeleteModal({ show: true, reminderId: id, isMultiple: false, deleting: false });
   };
 
   const handleDeleteSelected = () => {
     if (selectedItems.length === 0) {
-      toast.error("No items selected");
+      toast.error("No items selected", {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      });
       return;
     }
     setDeleteModal({ show: true, reminderId: null, isMultiple: true, deleting: false });
-    setShowMenu(false);
   };
 
   const confirmDelete = async () => {
     try {
-      setDeleteModal({ ...deleteModal, deleting: true });
+      setDeleteModal(prev => ({ ...prev, deleting: true }));
       
       if (deleteModal.isMultiple) {
-        await Promise.all(
-          selectedItems.map(id => deleteDoc(doc(db, "reminders", id)))
-        );
-        toast.success(`${selectedItems.length} reminder(s) deleted successfully!`);
+        const batch = writeBatch(db);
+        selectedItems.forEach(id => {
+          batch.delete(doc(db, "reminders", id));
+        });
+        await batch.commit();
+        
+        toast.success(`${selectedItems.length} reminder(s) deleted successfully!`, {
+          position: "top-center",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true
+        });
         setSelectedItems([]);
+        setSelectionMode(false);
       } else {
         await deleteDoc(doc(db, "reminders", deleteModal.reminderId));
-        toast.success("Reminder deleted successfully!");
-        setExpandedReminder(null);
+        toast.success("Reminder deleted successfully!", {
+          position: "top-center",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true
+        });
       }
     } catch (err) {
-      toast.error("Failed to delete reminder(s)");
+      toast.error("Failed to delete reminder(s)", {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      });
       console.error(err);
     }
     setDeleteModal({ show: false, reminderId: null, isMultiple: false, deleting: false });
+  };
+
+  // Format time to AM/PM
+  const formatTime = (time24) => {
+    if (!time24) return '';
+    const [hours, minutes] = time24.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  // Format date
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString + 'T00:00:00');
+    
+    const day = date.getDate();
+    const suffix = ['th', 'st', 'nd', 'rd'];
+    const relevantDigits = (day < 30) ? day % 20 : day % 30;
+    const daySuffix = (relevantDigits <= 3) ? suffix[relevantDigits] : suffix[0];
+    
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = monthNames[date.getMonth()];
+    const year = date.getFullYear();
+    
+    return `${day}${daySuffix} ${month} ${year}`;
+  };
+
+  const openDetailsModal = (reminder) => {
+    setDetailsModal({ show: true, reminder });
+  };
+
+  const closeDetailsModal = () => {
+    setDetailsModal({ show: false, reminder: null });
   };
 
   // Border color by status
@@ -169,6 +240,19 @@ const HRHistory = () => {
         .animate-progress {
           animation: progress 1.5s ease-in-out infinite;
         }
+
+        .history-card {
+          position: relative;
+        }
+
+        .history-card:hover .hover-hint {
+          opacity: 1;
+        }
+
+        .hover-hint {
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
       `}</style>
 
       <HrSidebar />
@@ -179,11 +263,6 @@ const HRHistory = () => {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-2xl font-semibold">Reminders History</h1>
-            {selectedItems.length > 0 && (
-              <p className="text-sm text-blue-600 mt-1">
-                {selectedItems.length} item(s) selected
-              </p>
-            )}
           </div>
 
           {/* Three Dots Menu */}
@@ -199,21 +278,11 @@ const HRHistory = () => {
               <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                 <button
                   onClick={handleSelectAll}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left text-sm"
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 transition-colors text-left text-sm"
                 >
                   <IoCheckboxOutline className="text-lg text-blue-600" />
-                  <span className="text-gray-700">
-                    {selectedItems.length === filteredHistory.length && filteredHistory.length > 0 ? "Deselect All" : "Select All"}
-                  </span>
-                </button>
-                <button
-                  onClick={handleDeleteSelected}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition-colors text-left text-sm border-t border-gray-200"
-                  disabled={selectedItems.length === 0}
-                >
-                  <IoTrashOutline className="text-lg text-red-600" />
-                  <span className={selectedItems.length === 0 ? "text-gray-400" : "text-red-600"}>
-                    Delete Selected ({selectedItems.length})
+                  <span className="text-gray-700 font-medium">
+                    Select All
                   </span>
                 </button>
               </div>
@@ -228,6 +297,30 @@ const HRHistory = () => {
           </div>
         </div>
 
+        {/* Selection Mode Bar */}
+        {selectionMode && (
+          <div className="mx-4 mt-4 mb-4 flex justify-end">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center gap-2 w-fit">
+              {selectedItems.length > 0 && (
+                <button
+                  onClick={handleDeleteSelected}
+                  className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                >
+                  <IoTrashOutline className="text-base" />
+                  Delete ({selectedItems.length})
+                </button>
+              )}
+              
+              <button
+                onClick={exitSelectionMode}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="tabs-container flex gap-2 mb-5 overflow-x-auto pb-2">
           <button
@@ -237,6 +330,7 @@ const HRHistory = () => {
             onClick={() => {
               setActiveTab('all');
               setSelectedItems([]);
+              setSelectionMode(false);
             }}
           >
             All ({allCount})
@@ -248,6 +342,7 @@ const HRHistory = () => {
             onClick={() => {
               setActiveTab('ceo');
               setSelectedItems([]);
+              setSelectionMode(false);
             }}
           >
             CEO ({ceoCount})
@@ -259,6 +354,7 @@ const HRHistory = () => {
             onClick={() => {
               setActiveTab('cto');
               setSelectedItems([]);
+              setSelectionMode(false);
             }}
           >
             CTO ({ctoCount})
@@ -270,6 +366,7 @@ const HRHistory = () => {
             onClick={() => {
               setActiveTab('hr');
               setSelectedItems([]);
+              setSelectionMode(false);
             }}
           >
             HR ({hrCount})
@@ -277,10 +374,10 @@ const HRHistory = () => {
         </div>
 
         {/* History List */}
-        <div className="history-scroll-container min-h-screen mx-4 mt-6 space-y-4 overflow-y-auto max-h-[600px] pr-2">
+        <div className="history-scroll-container mx-4 mt-6 space-y-4 overflow-y-auto max-h-[600px] pr-2" style={{scrollbarWidth:'none'}}>
           {filteredHistory.length === 0 ? (
             <div className="text-center py-10 bg-gray-50 rounded-lg">
-              <p className="text-gray-500 text-lg"> No reminder history available</p>
+              <p className="text-gray-500 text-lg">No reminder history available</p>
               <p className="text-gray-400 text-sm mt-2">
                 {activeTab === 'ceo' ? 'No CEO reminders found' : 
                  activeTab === 'cto' ? 'No CTO reminders found' : 
@@ -290,24 +387,89 @@ const HRHistory = () => {
             </div>
           ) : (
             filteredHistory.map((item) => {
-              const isExpanded = expandedReminder === item.id;
               const isSelected = selectedItems.includes(item.id);
 
               return (
                 <div
                   key={item.id}
-                  className={`relative flex items-center border border-[#E5E5E5] rounded-lg px-4 py-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${
-                    isSelected ? 'ring-2 ring-blue-500' : ''
-                  }`}
-                  onClick={() => toggleReminderExpansion(item.id)}
+                  className={`history-card relative flex items-start border rounded-lg px-4 py-3 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all min-h-[100px] ${
+                    isSelected ? 'ring-2 ring-blue-500' : 'border-[#E5E5E5]'
+                  } ${selectionMode ? 'cursor-pointer' : ''}`}
+                  onClick={(e) => {
+                    if (selectionMode) {
+                      toggleSelection(item.id, e);
+                    } else {
+                      openDetailsModal(item);
+                    }
+                  }}
                 >
+                  {/* Checkbox - shows only when selection mode is active */}
+                  {selectionMode && (
+                    <div 
+                      className="absolute top-4 left-4 z-10"
+                      onClick={(e) => toggleSelection(item.id, e)}
+                    >
+                      <div className={`w-6 h-6 border-2 rounded-md flex items-center justify-center cursor-pointer transition-all ${
+                        isSelected 
+                          ? 'bg-blue-600 border-blue-600 scale-110' 
+                          : 'bg-white border-gray-300 hover:border-blue-400'
+                      }`}>
+                        {isSelected && (
+                          <svg className="w-4 h-4 text-white" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" viewBox="0 0 24 24" stroke="currentColor">
+                            <path d="M5 13l4 4L19 7"></path>
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Three Dots - Top Right */}
+                  {!selectionMode && (
+                    <div className="absolute top-3 right-3 z-10">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActivePopup(activePopup === item.id ? null : item.id);
+                        }}
+                        className="p-1 hover:bg-gray-100 rounded transition-colors"
+                      >
+                        <IoEllipsisVertical className="text-base text-gray-600" />
+                      </button>
+
+                      {/* Popup Menu */}
+                      {activePopup === item.id && (
+                        <>
+                          <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                            <button
+                              onClick={(e) => handleDeleteClick(item.id, e)}
+                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-red-50 transition-colors text-left text-sm rounded-lg"
+                            >
+                              <IoTrashOutline className="text-base text-red-600" />
+                              <span className="text-red-600 font-medium">Delete</span>
+                            </button>
+                          </div>
+                          
+                          {/* Overlay to close popup */}
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActivePopup(null);
+                            }}
+                          ></div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
                   {/* Reminder Info */}
                   <div
-                    className={`border-l-[3px] pl-10 space-y-1 flex-1 ${getBorderColor(item.status)}`}
+                    className={`border-l-[3px] space-y-1 flex-1 ${getBorderColor(item.status)} ${selectionMode ? 'pl-10' : 'pl-4'} pr-12 pb-8`}
                   >
                     <p className="text-base font-semibold">
                       {item.title}
                     </p>
+
                     <p className="text-[#575B74] font-medium text-sm">
                       To: {item.assignedTo || "All Employees"}
                     </p>
@@ -317,16 +479,10 @@ const HRHistory = () => {
                         ? item.createdAt.toDate().toLocaleString()
                         : "N/A"}
                     </p>
-
-                    {!isExpanded && (
-                      <div className="flex justify-center pt-1">
-                        <p className="text-[10px] text-gray-400 italic"> see more</p>
-                      </div>
-                    )}
                   </div>
 
-                  {/* Status Right Center */}
-                  <div className="ml-auto flex items-center pr-4">
+                  {/* Status Badge - Bottom Right */}
+                  <div className="absolute bottom-3 right-3">
                     <span
                       className={`text-xs font-semibold px-3 py-1 rounded-full ${getStatusBadgeColor(item.status)}`}
                     >
@@ -334,77 +490,10 @@ const HRHistory = () => {
                     </span>
                   </div>
 
-                  {/* Expanded Details */}
-                  {isExpanded && (
-                    <div className="absolute left-0 right-0 top-full mt-2 bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-lg z-10">
-                      {item.description && (
-                        <div className="mb-3">
-                          <p className="text-xs font-medium text-gray-500 mb-1">Description:</p>
-                          <p className="text-xs text-gray-700">{item.description}</p>
-                        </div>
-                      )}
-
-                      {item.date && (
-                        <div className="mb-2">
-                          <p className="text-xs text-gray-600">
-                            📅 Date: <span className="font-medium">{item.date}</span>
-                            {item.time && <span className="ml-2">at {item.time}</span>}
-                          </p>
-                        </div>
-                      )}
-
-                      {item.alertTime && (
-                        <div className="mb-2">
-                          <p className="text-xs text-gray-600 flex gap-2">
-                            <Clock size={15}/> Alert Time: <span className="font-medium">{item.alertTime}</span>
-                          </p>
-                        </div>
-                      )}
-
-                      {item.priority && (
-                        <div className="mb-2">
-                          <p className="text-xs text-gray-600">
-                             Priority: <span className="font-medium">{item.priority}</span>
-                          </p>
-                        </div>
-                      )}
-
-                      {item.createdBy && (
-                        <div className="mb-2">
-                          <p className="text-xs text-gray-600 flex gap-2">
-                            <User size={15}/> Created By: <span className="font-medium">{item.createdBy}</span>
-                          </p>
-                        </div>
-                      )}
-
-                      {item.status === 'reject' && item.reason && (
-                        <div className="mb-3 bg-red-50 p-2 rounded">
-                          <p className="text-xs font-medium text-red-700 mb-1">Rejection Reason:</p>
-                          <p className="text-xs text-red-600">{item.reason}</p>
-                        </div>
-                      )}
-
-                      {item.status === 'approved' && item.updatedBy && (
-                        <div className="mb-2">
-                          <p className="text-xs text-green-600">
-                            ✓ Approved By: <span className="font-medium">{item.updatedBy}</span>
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Delete Button */}
-                      <div className="flex justify-end pt-3 border-t border-gray-200">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClick(item.id);
-                          }}
-                          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
-                        >
-                          <IoTrashOutline className="text-base" />
-                          Delete Reminder
-                        </button>
-                      </div>
+                  {/* Hover Hint */}
+                  {!selectionMode && (
+                    <div className='hover-hint absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white text-[10px] px-3 py-1 rounded-full'>
+                      Click to see details
                     </div>
                   )}
                 </div>
@@ -414,9 +503,157 @@ const HRHistory = () => {
         </div>
       </div>
 
+      {/* Details Modal */}
+      {detailsModal.show && detailsModal.reminder && (
+        <div className='fixed inset-0 flex items-center justify-center z-50 p-4'>
+          <div 
+            className='absolute inset-0 bg-black/50' 
+            onClick={closeDetailsModal}
+          ></div>
+          
+          <div className='relative bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden z-30'>
+            {/* Simple Header */}
+            <div className='bg-white px-6 py-4 border-b border-gray-200 flex justify-between items-center'>
+              <h2 className='text-xl font-semibold text-gray-800'>Reminder Details</h2>
+              <button
+                onClick={closeDetailsModal}
+                className='p-1.5 hover:bg-gray-100 rounded-full transition-colors'
+              >
+                <IoClose className='text-2xl text-gray-600' />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className='p-6 overflow-y-auto max-h-[calc(90vh-160px)]' style={{scrollbarWidth:'none'}}>
+              <div className='space-y-4'>
+                {/* Title */}
+                <div>
+                  <label className='block text-xs font-medium text-gray-500 mb-1.5'>Title</label>
+                  <p className='text-base font-semibold text-gray-900'>{detailsModal.reminder.title}</p>
+                </div>
+
+                {/* Description */}
+                {detailsModal.reminder.description && (
+                  <div>
+                    <label className='block text-xs font-medium text-gray-500 mb-1.5'>Description</label>
+                    <p className='text-sm text-gray-700'>{detailsModal.reminder.description}</p>
+                  </div>
+                )}
+
+                {/* Grid Layout */}
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4 pt-2'>
+                  {/* Priority */}
+                  {detailsModal.reminder.priority && (
+                    <div>
+                      <label className='block text-xs font-medium text-gray-500 mb-1.5'>Priority</label>
+                      <span className='inline-block bg-red-100 text-red-700 text-xs font-semibold px-3 py-1.5 rounded'>
+                        {detailsModal.reminder.priority}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Created By */}
+                  <div>
+                    <label className='block text-xs font-medium text-gray-500 mb-1.5'>Created By</label>
+                    <p className='text-sm font-medium text-gray-900'>{detailsModal.reminder.createdBy}</p>
+                  </div>
+
+                  {/* Assigned To */}
+                  <div>
+                    <label className='block text-xs font-medium text-gray-500 mb-1.5'>Assigned To</label>
+                    <p className='text-sm font-medium text-gray-900'>{detailsModal.reminder.assignedTo || "All Employees"}</p>
+                  </div>
+
+                  {/* Date */}
+                  {detailsModal.reminder.date && (
+                    <div>
+                      <label className='block text-xs font-medium text-gray-500 mb-1.5'>Date</label>
+                      <p className='text-sm font-medium text-gray-900'>{formatDate(detailsModal.reminder.date)}</p>
+                    </div>
+                  )}
+
+                  {/* Time */}
+                  {detailsModal.reminder.time && (
+                    <div>
+                      <label className='block text-xs font-medium text-gray-500 mb-1.5'>Time</label>
+                      <p className='text-sm font-medium text-gray-900'>{formatTime(detailsModal.reminder.time)}</p>
+                    </div>
+                  )}
+
+                  {/* Alert Time */}
+                  {detailsModal.reminder.alertTime && (
+                    <div>
+                      <label className='block text-xs font-medium text-gray-500 mb-1.5 flex items-center gap-1'>
+                        <Clock size={12}/>
+                        Alert Time
+                      </label>
+                      <p className='text-sm font-medium text-gray-900'>{formatTime(detailsModal.reminder.alertTime)}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Status */}
+                <div className='pt-2'>
+                  <label className='block text-xs font-medium text-gray-500 mb-2'>Status</label>
+                  <div className={`p-4 rounded-lg border ${
+                    detailsModal.reminder.status === 'approved' ? 'bg-green-50 border-green-200' : 
+                    detailsModal.reminder.status === 'reject' ? 'bg-red-50 border-red-200' : 
+                    'bg-orange-50 border-orange-200'
+                  }`}>
+                    <p className={`text-sm font-semibold mb-1 ${
+                      detailsModal.reminder.status === 'approved' ? 'text-green-700' : 
+                      detailsModal.reminder.status === 'reject' ? 'text-red-700' : 
+                      'text-orange-700'
+                    }`}>
+                      {detailsModal.reminder.status === 'approved' ? '✓ Approved' : 
+                       detailsModal.reminder.status === 'reject' ? '✗ Rejected' : 
+                       'Pending'}
+                    </p>
+                    {detailsModal.reminder.status === 'approved' && detailsModal.reminder.updatedBy && (
+                      <p className='text-xs text-green-600'>
+                        Approved by: <span className='font-semibold'>{detailsModal.reminder.updatedBy}</span>
+                      </p>
+                    )}
+                    {detailsModal.reminder.status === 'reject' && detailsModal.reminder.rejectedBy && (
+                      <p className='text-xs text-red-600'>
+                        Rejected by: <span className='font-semibold'>{detailsModal.reminder.rejectedBy}</span>
+                      </p>
+                    )}
+                    {detailsModal.reminder.status === 'reject' && detailsModal.reminder.reason && (
+                      <div className='mt-2 pt-2 border-t border-red-200'>
+                        <p className='text-xs text-red-600'>
+                          Reason: <span className='font-semibold'>{detailsModal.reminder.reason}</span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className='px-6 py-4 bg-gray-50 border-t border-gray-200 flex gap-3'>
+              <button
+                onClick={closeDetailsModal}
+                className='flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors'
+              >
+                Close
+              </button>
+              <button
+                onClick={(e) => handleDeleteClick(detailsModal.reminder.id, e)}
+                className='flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2'
+              >
+                <IoTrashOutline className='text-base' />
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
       {deleteModal.show && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 flex items-center justify-center z-[60] p-4">
           <div
             className="absolute inset-0 bg-black/50"
             onClick={() => !deleteModal.deleting && setDeleteModal({ show: false, reminderId: null, isMultiple: false, deleting: false })}

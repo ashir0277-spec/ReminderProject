@@ -4,7 +4,7 @@ import user01 from '../../assets/user-01.svg';
 import calendardate from '../../assets/calendar-date.svg';
 
 // Firebase
-import { collection, getDocs, query, where, doc, updateDoc, writeBatch } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, deleteDoc, writeBatch } from "firebase/firestore";
 import { db } from "../../Components/firebase";
 import { IoEllipsisVertical, IoTrashOutline, IoCheckboxOutline } from "react-icons/io5";
 import { toast, ToastContainer } from "react-toastify";
@@ -15,7 +15,6 @@ const HRReminder = () => {
   const [hrReminders, setHrReminders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [expandedReminder, setExpandedReminder] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [selectedItems, setSelectedItems] = useState([]);
   const [deleteModal, setDeleteModal] = useState({ 
@@ -24,6 +23,8 @@ const HRReminder = () => {
     isMultiple: false, 
     deleting: false 
   });
+  const [activePopup, setActivePopup] = useState(null);
+  const [selectionMode, setSelectionMode] = useState(false);
 
   const currentUser = sessionStorage.getItem('userRole') || "HR";
 
@@ -133,29 +134,31 @@ const HRReminder = () => {
           item.status.toLowerCase() === activeTab.toLowerCase()
         );
 
-  // Toggle expand/collapse
-  const toggleReminderExpansion = (id) => {
-    setExpandedReminder(expandedReminder === id ? null : id);
-  };
-
   // Toggle selection
-  const toggleSelection = (id) => {
+  const toggleSelection = (id, e) => {
+    e.stopPropagation();
     setSelectedItems(prev => 
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
   };
 
-  // Select all
+  // Select all / Enter selection mode
   const handleSelectAll = () => {
-    if (selectedItems.length === filteredReminders.length && filteredReminders.length > 0) {
-      setSelectedItems([]);
-    } else {
-      setSelectedItems(filteredReminders.map(item => item.id));
-    }
+    setSelectionMode(true);
+    setSelectedItems(filteredReminders.map(item => item.id));
+    setShowMenu(false);
   };
 
-  // Delete single reminder
-  const handleDeleteClick = (id) => {
+  // Exit selection mode
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedItems([]);
+  };
+
+  // Delete single reminder from popup
+  const handleDeleteClick = (id, e) => {
+    e.stopPropagation();
+    setActivePopup(null);
     setDeleteModal({ show: true, reminderId: id, isMultiple: false, deleting: false });
   };
 
@@ -164,15 +167,18 @@ const HRReminder = () => {
     if (selectedItems.length === 0) {
       toast.error("No items selected", {
         position: "top-center",
-        className: "px-5"
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
       });
       return;
     }
     setDeleteModal({ show: true, reminderId: null, isMultiple: true, deleting: false });
-    setShowMenu(false);
   };
 
-  // Confirm delete (soft delete)
+  // Confirm delete (permanent delete from Firebase)
   const confirmDelete = async () => {
     try {
       setDeleteModal(prev => ({ ...prev, deleting: true }));
@@ -181,44 +187,51 @@ const HRReminder = () => {
         // Batch delete for multiple items
         const batch = writeBatch(db);
         selectedItems.forEach(id => {
-          batch.update(doc(db, "reminders", id), { isDeleted: true });
+          batch.delete(doc(db, "reminders", id));
         });
         await batch.commit();
         
         toast.success(`${selectedItems.length} reminder(s) deleted successfully!`, {
           position: "top-center",
-          autoClose: 2000,
-          className: "px-5"
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true
         });
+        
+        // Update local state
+        const updatedReminders = hrReminders.filter(r => !selectedItems.includes(r.id));
+        setHrReminders(updatedReminders);
         setSelectedItems([]);
+        setSelectionMode(false);
       } else {
         // Single delete
-        await updateDoc(doc(db, "reminders", deleteModal.reminderId), { 
-          isDeleted: true 
-        });
+        await deleteDoc(doc(db, "reminders", deleteModal.reminderId));
         
         toast.success("Reminder deleted successfully!", {
           position: "top-center",
-          autoClose: 2000,
-          className: "px-5"
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true
         });
-        setExpandedReminder(null);
+        
+        // Update local state
+        const updatedReminders = hrReminders.filter(r => r.id !== deleteModal.reminderId);
+        setHrReminders(updatedReminders);
       }
-
-      // Refresh reminders list
-      const updatedReminders = hrReminders.filter(r => {
-        if (deleteModal.isMultiple) {
-          return !selectedItems.includes(r.id);
-        }
-        return r.id !== deleteModal.reminderId;
-      });
-      setHrReminders(updatedReminders);
 
     } catch (err) {
       console.error("Delete error:", err);
       toast.error("Failed to delete reminder(s)", {
         position: "top-center",
-        className: "px-5"
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
       });
     }
 
@@ -235,6 +248,13 @@ const HRReminder = () => {
   ];
 
   const getInitials = (name) => {
+    // Special handling for common roles
+    const upperName = name.toUpperCase();
+    if (upperName === "CTO" || upperName === "CEO" || upperName === "HR" || upperName === "CFO" || upperName === "COO") {
+      return upperName;
+    }
+    
+    // Regular name handling
     const parts = name.split(" ");
     return parts.length > 1
       ? parts[0][0] + parts[parts.length - 1][0]
@@ -297,23 +317,11 @@ const HRReminder = () => {
               <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                 <button
                   onClick={handleSelectAll}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left text-sm"
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 transition-colors text-left text-sm"
                 >
                   <IoCheckboxOutline className="text-lg text-blue-600" />
-                  <span className="text-gray-700">
-                    {selectedItems.length === filteredReminders.length && filteredReminders.length > 0 
-                      ? "Deselect All" 
-                      : "Select All"}
-                  </span>
-                </button>
-                <button
-                  onClick={handleDeleteSelected}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition-colors text-left text-sm border-t border-gray-200"
-                  disabled={selectedItems.length === 0}
-                >
-                  <IoTrashOutline className="text-lg text-red-600" />
-                  <span className={selectedItems.length === 0 ? "text-gray-400" : "text-red-600"}>
-                    Delete Selected ({selectedItems.length})
+                  <span className="text-gray-700 font-medium">
+                    Select All
                   </span>
                 </button>
               </div>
@@ -329,6 +337,30 @@ const HRReminder = () => {
           </div>
         </div>
 
+        {/* Selection Mode Bar - Only Buttons with auto width */}
+        {selectionMode && (
+          <div className="mx-4 mt-4 flex justify-end">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center gap-2 w-fit">
+              {selectedItems.length > 0 && (
+                <button
+                  onClick={handleDeleteSelected}
+                  className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                >
+                  <IoTrashOutline className="text-base" />
+                  Delete ({selectedItems.length})
+                </button>
+              )}
+              
+              <button
+                onClick={exitSelectionMode}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className='min-h-20 mt-5'>
           <p className='px-4 text-sm font-medium whitespace-nowrap'>Sent Reminders</p>
 
@@ -340,6 +372,7 @@ const HRReminder = () => {
                 onClick={() => {
                   setActiveTab(tab);
                   setSelectedItems([]);
+                  setSelectionMode(false);
                 }}
                 className={`font-medium text-xs px-5 py-2 rounded-2xl
                   ${activeTab === tab
@@ -372,24 +405,47 @@ const HRReminder = () => {
           ) : (
             filteredReminders.map((item, index) => {
               const avatar = avatarColors[index % avatarColors.length];
-              const isExpanded = expandedReminder === item.id;
               const isSelected = selectedItems.includes(item.id);
 
               return (
                 <div
                   key={item.id}
-                  className={`border min-h-30 mx-4 mt-4 rounded-2xl shadow-sm p-4 cursor-pointer hover:shadow-md transition-shadow relative ${
+                  className={`border min-h-30 mx-4 mt-4 rounded-2xl shadow-sm p-4 hover:shadow-md transition-shadow relative ${
                     isSelected ? 'ring-2 ring-blue-500' : 'border-[#E5E5E5]'
-                  }`}
-                  onClick={() => toggleReminderExpansion(item.id)}
+                  } ${selectionMode ? 'cursor-pointer' : ''}`}
+                  onClick={(e) => {
+                    if (selectionMode) {
+                      toggleSelection(item.id, e);
+                    }
+                  }}
                 >
-                  <div className='flex items-start gap-3'>
+                  {/* Checkbox - shows only when selection mode is active */}
+                  {selectionMode && (
+                    <div 
+                      className="absolute top-4 left-4 z-10"
+                      onClick={(e) => toggleSelection(item.id, e)}
+                    >
+                      <div className={`w-6 h-6 border-2 rounded-md flex items-center justify-center cursor-pointer transition-all ${
+                        isSelected 
+                          ? 'bg-blue-600 border-blue-600 scale-110' 
+                          : 'bg-white border-gray-300 hover:border-blue-400'
+                      }`}>
+                        {isSelected && (
+                          <svg className="w-4 h-4 text-white" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" viewBox="0 0 24 24" stroke="currentColor">
+                            <path d="M5 13l4 4L19 7"></path>
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className={`flex items-start gap-3 ${selectionMode ? 'ml-7' : ''}`}>
                     <div
                       className={`w-10 h-10 rounded-full 
                       ${avatar.bg} 
                       flex items-center justify-center flex-shrink-0`}
                     >
-                      <p className={`text-base font-medium ${avatar.text}`}>
+                      <p className={`text-xs font-bold ${avatar.text}`}>
                         {getInitials(item.name)}
                       </p>
                     </div>
@@ -397,7 +453,45 @@ const HRReminder = () => {
                     <div className='flex flex-col flex-1 mt-2'>
                       <div className='flex justify-between items-start'>
                         <p className='text-sm font-medium'>{item.title}</p>
-                        <p className='text-[#D4183D] text-xs whitespace-nowrap'>! {item.priority}</p>
+                        
+                        {/* Three Dots for Individual Reminder */}
+                        {!selectionMode && (
+                          <div className="relative">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActivePopup(activePopup === item.id ? null : item.id);
+                              }}
+                              className="p-1 hover:bg-gray-100 rounded transition-colors"
+                            >
+                              <IoEllipsisVertical className="text-base text-gray-600" />
+                            </button>
+
+                            {/* Popup Menu */}
+                            {activePopup === item.id && (
+                              <>
+                                <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                                  <button
+                                    onClick={(e) => handleDeleteClick(item.id, e)}
+                                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-red-50 transition-colors text-left text-sm rounded-lg"
+                                  >
+                                    <IoTrashOutline className="text-base text-red-600" />
+                                    <span className="text-red-600 font-medium">Delete</span>
+                                  </button>
+                                </div>
+                                
+                                {/* Overlay to close popup */}
+                                <div
+                                  className="fixed inset-0 z-40"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActivePopup(null);
+                                  }}
+                                ></div>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {item.description && (
@@ -431,28 +525,6 @@ const HRReminder = () => {
                           </p>
                         )}
                       </div>
-
-                      {!isExpanded && (
-                        <div className='flex justify-center pt-2'>
-                          <p className='text-[10px] text-gray-400 italic'> see more </p>
-                        </div>
-                      )}
-
-                      {/* Expanded Section */}
-                      {isExpanded && (
-                        <div className='mt-4 pt-4 border-t border-gray-200'>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteClick(item.id);
-                            }}
-                            className='bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1'
-                          >
-                            <IoTrashOutline className='text-base' />
-                            Delete Reminder
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -492,8 +564,8 @@ const HRReminder = () => {
               <>
                 <p className="text-gray-600 text-sm mb-6">
                   {deleteModal.isMultiple
-                    ? `Are you sure you want to delete ${selectedItems.length} selected reminder(s)?`
-                    : 'Are you sure you want to delete this reminder?'}
+                    ? `Are you sure you want to delete ${selectedItems.length} selected reminder(s)? They will be permanently removed from Firebase.`
+                    : 'Are you sure you want to delete this reminder? It will be permanently removed from Firebase.'}
                 </p>
                 <div className="flex justify-end gap-3">
                   <button
@@ -506,7 +578,7 @@ const HRReminder = () => {
                     onClick={confirmDelete}
                     className="bg-red-500 hover:bg-red-600 px-5 py-2 rounded-lg text-white font-medium transition-colors"
                   >
-                    Delete
+                    Yes, Delete
                   </button>
                 </div>
               </>
