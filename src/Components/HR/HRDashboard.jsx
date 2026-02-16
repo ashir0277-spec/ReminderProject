@@ -2,11 +2,15 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from './HrSidebar';
 import user01 from '../../assets/user-01.svg';
 import calendardate from '../../assets/calendar-date.svg';
-import { IoAddOutline, IoChevronDown, IoChevronUp, IoChevronForward } from "react-icons/io5";
+import star from '../../assets/star.svg';
+import { IoAddOutline, IoChevronDown, IoChevronUp, IoChevronForward, IoTrashOutline } from "react-icons/io5";
 import {
   collection,
   addDoc,
   getDocs,
+  updateDoc,
+  deleteDoc,
+  doc,
   query,
   where,
   serverTimestamp
@@ -20,6 +24,9 @@ import "react-datepicker/dist/react-datepicker.css";
 const HRDashboard = () => {
   const [showModal, setShowModal] = useState(false);
   const [reminders, setReminders] = useState([]);
+  const [expandedReminder, setExpandedReminder] = useState(null);
+  const [deleteModal, setDeleteModal] = useState({ show: false, reminderId: null });
+  const [activeTab, setActiveTab] = useState('my');
   
   const currentUser = sessionStorage.getItem('userRole') || "HR";
   const currentUserEmail = sessionStorage.getItem('userEmail') || "";
@@ -28,8 +35,8 @@ const HRDashboard = () => {
     title: '',
     description: '',
     priority: 'Normal',
-    date: null,           // DatePicker ke liye null/initial Date object
-    time: null,           // TimePicker ke liye null/initial Date object
+    date: null,
+    time: null,
     alertTime: null,
     assignTo: '',
     assignedEmails: []
@@ -202,8 +209,8 @@ const HRDashboard = () => {
         assignedTo: newReminder.assignTo.trim(),
         assignedEmails: newReminder.assignedEmails,
         sharedWith,
-        date: newReminder.date.toISOString().split('T')[0],      // YYYY-MM-DD format
-        time: newReminder.time.toTimeString().slice(0, 5),      // HH:MM
+        date: newReminder.date.toISOString().split('T')[0],
+        time: newReminder.time.toTimeString().slice(0, 5),
         alertTime: newReminder.alertTime ? newReminder.alertTime.toTimeString().slice(0, 5) : null,
         status: "pending",
         starred: false,
@@ -228,6 +235,45 @@ const HRDashboard = () => {
     }
   };
 
+  const toggleStar = async (id, currentStarred) => {
+    try {
+      const reminderRef = doc(db, "reminders", id);
+      await updateDoc(reminderRef, {
+        starred: !currentStarred,
+        starredBy: !currentStarred ? currentUser : null,
+        starredAt: !currentStarred ? serverTimestamp() : null
+      });
+      setReminders(prev => prev.map(r =>
+        r.id === id ? { ...r, starred: !currentStarred } : r
+      ));
+      toast.success(!currentStarred ? "⭐ Starred!" : "Star removed");
+    } catch (err) {
+      toast.error("Failed to update star");
+      console.error(err);
+    }
+  };
+
+  const handleDeleteClick = (id) => {
+    setDeleteModal({ show: true, reminderId: id });
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await deleteDoc(doc(db, "reminders", deleteModal.reminderId));
+      setReminders(prev => prev.filter(r => r.id !== deleteModal.reminderId));
+      toast.success("Reminder deleted successfully!");
+      setExpandedReminder(null);
+    } catch (err) {
+      toast.error("Failed to delete reminder");
+      console.error(err);
+    }
+    setDeleteModal({ show: false, reminderId: null });
+  };
+
+  const toggleReminderExpansion = (id) => {
+    setExpandedReminder(expandedReminder === id ? null : id);
+  };
+
   const shouldShowStatus = (item) => {
     const assignedRoles = (item.assignedTo || '').split(', ').filter(Boolean);
     const isOnlyHR = (assignedRoles.length === 0 || 
@@ -240,8 +286,37 @@ const HRDashboard = () => {
     return true;
   };
 
+  const filterByTab = (reminder) => {
+    if (activeTab === 'my') return reminder.createdBy === currentUser;
+    if (activeTab === 'sharedWithMe') return reminder.sharedWith?.includes(currentUser) && reminder.createdBy !== currentUser;
+    if (activeTab === 'sharedByMe') return reminder.createdBy === currentUser && reminder.sharedWith?.length > 0;
+    return true;
+  };
+
+  const filteredReminders = reminders.filter(filterByTab);
+
   return (
     <>
+      <style>{`
+        .reminders-scroll-container::-webkit-scrollbar {
+          width: 8px;
+        }
+        
+        .reminders-scroll-container::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 10px;
+        }
+        
+        .reminders-scroll-container::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 10px;
+        }
+        
+        .reminders-scroll-container::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+      `}</style>
+
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
       <Sidebar />
 
@@ -257,64 +332,181 @@ const HRDashboard = () => {
           </button>
         </div>
 
-        {reminders.length === 0 ? (
+        {/* Tabs */}
+        <div className='flex gap-2 mb-5 whitespace-nowrap overflow-x-auto' style={{scrollbarWidth: 'none'}}>
+          <button
+            className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+              activeTab === 'my' ? 'bg-[#0081FFFC] text-white' : 'text-[#2C3E50] bg-gray-100 hover:bg-gray-200'
+            }`}
+            onClick={() => setActiveTab('my')}
+          >
+            My Reminders ({reminders.filter(r => r.createdBy === currentUser).length})
+          </button>
+          <button
+            className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+              activeTab === 'sharedWithMe' ? 'bg-[#0081FFFC] text-white' : 'text-[#2C3E50] bg-gray-100 hover:bg-gray-200'
+            }`}
+            onClick={() => setActiveTab('sharedWithMe')}
+          >
+            Shared With Me ({reminders.filter(r => r.sharedWith?.includes(currentUser) && r.createdBy !== currentUser).length})
+          </button>
+          <button
+            className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+              activeTab === 'sharedByMe' ? 'bg-[#0081FFFC] text-white' : 'text-[#2C3E50] bg-gray-100 hover:bg-gray-200'
+            }`}
+            onClick={() => setActiveTab('sharedByMe')}
+          >
+            Shared By Me ({reminders.filter(r => r.createdBy === currentUser && r.sharedWith?.length > 0).length})
+          </button>
+        </div>
+
+        {filteredReminders.length === 0 ? (
           <p className="text-center text-gray-400 mt-10">No reminders found</p>
         ) : (
-          reminders.map((item) => (
-            <div
-              key={item.id}
-              className='border border-[#E5E5E5] shadow-md px-4 py-4 mt-6 rounded-lg space-y-3'
-            >
-              <div className='flex justify-between'>
-                <h1 className='text-sm font-semibold'>{item.title}</h1>
-                <p className='text-[#D4183D] text-xs'>! {item.priority}</p>
-              </div>
-
-              {item.description && (
-                <p className='text-xs text-gray-600'>
-                  {item.description}
-                </p>
-              )}
-
-              <div className='flex gap-2'>
-                <img src={user01} className='w-5 h-5' alt="user" />
-                <p className='text-xs text-gray-600'>
-                  Created by: <span className='font-medium'>{item.createdBy}</span>
-                </p>
-              </div>
-
-              {item.assignedTo && item.assignedTo.trim() !== '' && (
-                <p className='text-xs text-gray-600'>
-                  Assigned to: <span className='font-medium text-blue-600'>{item.assignedTo}</span>
-                </p>
-              )}
-
-              <div className='flex gap-2'>
-                <img src={calendardate} className='w-4 h-4' alt="calendar" />
-                <p className='text-xs text-gray-700'>
-                  {item.date} {item.time && `at ${item.time}`}
-                </p>
-              </div>
-
-              <div className='h-[1px] bg-[#E5E5E5] my-3'></div>
+          <div className='reminders-scroll-container max-h-[600px] overflow-y-auto pr-2'>
+            {filteredReminders.map((item) => {
+              const isExpanded = expandedReminder === item.id;
               
-              {shouldShowStatus(item) && item.createdBy === currentUser && (
-                <div className='flex justify-end items-center'>
-                  <span
-                    className={`font-medium text-sm ${
-                      item.status === 'approved' ? 'text-green-600' : item.status === 'reject' ? 'text-red-600' : 'text-orange-600'
-                    }`}
-                  >
-                    {item.status === 'approved' ? '✓ Approved' : item.status === 'reject' ? '✗ Rejected' : 'Pending'}
-                  </span>
+              return (
+                <div
+                  key={item.id}
+                  className='border border-[#E5E5E5] shadow-md px-4 py-4 mt-6 rounded-lg cursor-pointer hover:shadow-lg transition-shadow'
+                  onClick={() => toggleReminderExpansion(item.id)}
+                >
+                  <div className='flex justify-between'>
+                    <h1 className='text-sm font-semibold'>{item.title}</h1>
+                    <p className='text-[#D4183D] text-xs'>! {item.priority}</p>
+                  </div>
+
+                  {item.description && (
+                    <p className='text-xs text-gray-600 mt-2'>
+                      {item.description}
+                    </p>
+                  )}
+
+                  <div className='flex gap-2 mt-3'>
+                    <img src={user01} className='w-5 h-5' alt="user" />
+                    <p className='text-xs text-gray-600'>
+                      Created by: <span className='font-medium'>{item.createdBy}</span>
+                    </p>
+                  </div>
+
+                  {item.assignedTo && item.assignedTo.trim() !== '' && (
+                    <p className='text-xs text-gray-600 mt-2'>
+                      Assigned to: <span className='font-medium text-blue-600'>{item.assignedTo}</span>
+                    </p>
+                  )}
+
+                  {item.alertTime && (
+                    <p className='text-xs text-gray-600 mt-2'>
+                      ⏰ Alert Time: <span className='font-medium'>{item.alertTime}</span>
+                    </p>
+                  )}
+
+                  <div className='flex justify-between items-center mt-3'>
+                    <div className='flex gap-2 items-center'>
+                      <img src={calendardate} className='w-4 h-4' alt="calendar" />
+                      <p className='text-xs text-gray-700'>
+                        {item.date} {item.time && `at ${item.time}`}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleStar(item.id, item.starred);
+                      }}
+                      className='transition-transform hover:scale-110 active:scale-95'
+                    >
+                      <img
+                        src={star}
+                        className='w-5 h-5'
+                        alt="star"
+                        style={{
+                          filter: item.starred
+                            ? 'invert(66%) sepia(93%) saturate(1352%) brightness(95%) contrast(101%)'
+                            : 'grayscale(100%) opacity(40%)'
+                        }}
+                      />
+                    </button>
+                  </div>
+
+                  {!isExpanded && (
+                    <div className='flex justify-center pt-2'>
+                      <p className='text-[10px] text-gray-400 italic'>Click to see details</p>
+                    </div>
+                  )}
+
+                  {isExpanded && (
+                    <>
+                      <div className='h-[1px] bg-[#E5E5E5] my-3'></div>
+                      
+                      <div className='flex justify-between items-center'>
+                        {shouldShowStatus(item) && item.createdBy === currentUser && (
+                          <span
+                            className={`font-medium text-sm ${
+                              item.status === 'approved' ? 'text-green-600' : item.status === 'reject' ? 'text-red-600' : 'text-orange-600'
+                            }`}
+                          >
+                            {item.status === 'approved' ? '✓ Approved' : item.status === 'reject' ? '✗ Rejected' : 'Pending'}
+                          </span>
+                        )}
+                        
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClick(item.id);
+                          }}
+                          className='bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 ml-auto'
+                        >
+                          <IoTrashOutline className='text-base' />
+                          Delete
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
-              )}
-            </div>
-          ))
+              );
+            })}
+          </div>
         )}
       </div>
 
-      {/* ==================== CUSTOM DATE & TIME PICKER MODAL ==================== */}
+      {/* Delete Modal */}
+      {deleteModal.show && (
+        <div className='fixed inset-0 flex items-center justify-center z-50 p-4'>
+          <div className='absolute inset-0 bg-black/50' onClick={() => setDeleteModal({ show: false, reminderId: null })}></div>
+          <div className='relative bg-white p-6 rounded-xl w-full max-w-md shadow-2xl'>
+            <div className='flex items-center gap-3 mb-4'>
+              <div className='w-12 h-12 bg-red-100 rounded-full flex items-center justify-center'>
+                <IoTrashOutline className='text-2xl text-red-600' />
+              </div>
+              <div>
+                <h2 className='text-xl font-semibold text-gray-800'>Delete Reminder</h2>
+                <p className='text-sm text-gray-500'>This action cannot be undone</p>
+              </div>
+            </div>
+            <p className='text-gray-600 text-sm mb-6'>
+              Are you sure you want to delete this reminder?
+            </p>
+            <div className='flex justify-end gap-3'>
+              <button
+                onClick={() => setDeleteModal({ show: false, reminderId: null })}
+                className='bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-lg text-gray-700 font-medium transition-colors'
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className='bg-red-500 hover:bg-red-600 px-5 py-2 rounded-lg text-white font-medium transition-colors'
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Reminder Modal - Same as before */}
       {showModal && (
         <div className='fixed inset-0 flex items-center justify-center z-50 p-4'>
           <div className='absolute inset-0 bg-black/50' onClick={() => setShowModal(false)} />
@@ -359,7 +551,6 @@ const HRDashboard = () => {
                 </select>
               </div>
 
-              {/* Custom Date Picker */}
               <div>
                 <label className='block text-sm font-medium text-gray-700 mb-1.5'>Date *</label>
                 <DatePicker
@@ -372,7 +563,6 @@ const HRDashboard = () => {
                 />
               </div>
 
-              {/* Custom Time Picker */}
               <div>
                 <label className='block text-sm font-medium text-gray-700 mb-1.5'>Time *</label>
                 <DatePicker
@@ -389,7 +579,6 @@ const HRDashboard = () => {
                 />
               </div>
 
-              {/* Custom Alert Time Picker */}
               <div>
                 <label className='block text-sm font-medium text-gray-700 mb-1.5'>Alert Time</label>
                 <DatePicker
@@ -406,7 +595,7 @@ const HRDashboard = () => {
                 />
               </div>
 
-              {/* Assign To Dropdown */}
+              {/* Assign To Dropdown - Same as before */}
               <div className='relative'>
                 <label className='block text-sm font-medium text-gray-700 mb-1.5'>Assign To (optional)</label>
                 <div

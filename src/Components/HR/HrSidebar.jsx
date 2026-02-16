@@ -10,10 +10,14 @@ import { auth } from '../firebase';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { IoIosNotifications } from "react-icons/io";
+import { useNotifications } from '../HR/Usenotifications';
 
-const Sidebar = ({ isOpen, onClose }) => {
+const HrSidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  
+  // Get notification count using custom hook
+  const { unreadCount } = useNotifications("HR");
 
   const activeClass = 'bg-[#0081FF] text-white';
   const inactiveClass = 'text-[#898989] hover:bg-[#1E2730] hover:text-white transition-colors duration-200';
@@ -93,15 +97,31 @@ const Sidebar = ({ isOpen, onClose }) => {
             <MdHistory className='text-2xl'/>
             <span className="ml-5 text-sm font-medium">History</span>
           </NavLink>
+
+          {/* Notification with Badge Count */}
           <NavLink
             to="/hr/notification"
             onClick={onClose}
             className={({ isActive }) =>
-              `flex items-center px-5 py-3 rounded-lg ${isActive ? activeClass : inactiveClass}`
+              `flex items-center px-5 py-3 rounded-lg relative ${isActive ? activeClass : inactiveClass}`
             }
           >
-             <IoIosNotifications className='text-2xl'/>
+            <div className="relative">
+              <IoIosNotifications className='text-2xl'/>
+              {/* Notification Badge - Only show if unreadCount > 0 */}
+              {unreadCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg animate-pulse">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </div>
             <span className="ml-5 text-sm font-medium">Notification</span>
+            {/* Optional: Show count in text too */}
+            {unreadCount > 0 && (
+              <span className="ml-auto text-xs bg-red-500 text-white px-2 py-1 rounded-full font-semibold">
+                {unreadCount}
+              </span>
+            )}
           </NavLink>
 
           <NavLink
@@ -155,4 +175,4 @@ const Sidebar = ({ isOpen, onClose }) => {
   );
 };
 
-export default Sidebar;
+export default HrSidebar;

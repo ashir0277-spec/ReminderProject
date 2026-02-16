@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import Sidebar from './HrSidebar'
+import HrSidebar from './HrSidebar'  // ✅ FIXED: Changed from Sidebar to HrSidebar
 import Topbar from '../Admin/Topbar'
 import { LuUserPen } from "react-icons/lu";
 import { doc, setDoc, getDoc } from 'firebase/firestore'
@@ -56,7 +56,7 @@ const HRSettings = () => {
 
   return (
     <>
-      <Sidebar />
+      <HrSidebar />
 
       <div className='mx-3 mt-5 min-h-screen'>
         <h1 className='font-semibold text-2xl'>Settings</h1>

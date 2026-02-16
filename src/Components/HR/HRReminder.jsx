@@ -22,21 +22,26 @@ const HRReminder = () => {
       setError(null);
 
       try {
+        // HR ke dwara BHEJI gayi reminders (outgoing)
+        // Yeh HR ne kisi ko bhi bheji hon - CEO, CTO, etc
         const myQuery = query(
           collection(db, "reminders"),
           where("createdBy", "==", currentUser)
         );
 
-        const sharedQuery = query(
+        // HR ko AAYI hui reminders (incoming)
+        // Yeh dusron ne HR ko bheji hon
+        const incomingQuery = query(
           collection(db, "reminders"),
-          where("sharedWith", "array-contains", "HR")
+          where("assignedTo", "==", currentUser)
         );
 
-        const [mySnap, sharedSnap] = await Promise.all([
+        const [mySnap, incomingSnap] = await Promise.all([
           getDocs(myQuery),
-          getDocs(sharedQuery)
+          getDocs(incomingQuery)
         ]);
 
+        // Outgoing reminders (HR ne bheje - CEO, CTO ko)
         const myList = mySnap.docs.map(docSnap => {
           const data = docSnap.data();
           let status = data.status || "pending";
@@ -47,7 +52,7 @@ const HRReminder = () => {
             id: docSnap.id,
             title: data.title || "Untitled",
             description: data.description || "",
-            name: data.assignedTo || "HR",
+            name: data.assignedTo || "Unknown",
             createdBy: data.createdBy || "Unknown",
             dueDate: data.date ? new Date(data.date).toLocaleDateString() : "",
             time: data.time || "",
@@ -57,35 +62,42 @@ const HRReminder = () => {
               status.toLowerCase() === "approved" ? "#22C55E" :
               "#EF4444",
             priority: data.priority || "Normal",
-            isIncoming: data.createdBy !== currentUser
+            isIncoming: false,
+            type: "outgoing" // Track type for filtering
           };
         });
 
-        const sharedList = sharedSnap.docs.map(docSnap => {
-          const data = docSnap.data();
-          let status = data.status || "pending";
-          if (status === "reject") status = "rejected";
-          status = status.charAt(0).toUpperCase() + status.slice(1);
+        // Incoming reminders (CEO, CTO ne HR ko bheji)
+        const incomingList = incomingSnap.docs
+          .filter(docSnap => docSnap.data().createdBy !== currentUser) // Avoid self-assigned
+          .map(docSnap => {
+            const data = docSnap.data();
+            let status = data.status || "pending";
+            if (status === "reject") status = "rejected";
+            status = status.charAt(0).toUpperCase() + status.slice(1);
 
-          return {
-            id: docSnap.id,
-            title: data.title || "Untitled",
-            description: data.description || "",
-            name: data.assignedTo || "HR",
-            createdBy: data.createdBy || "Unknown",
-            dueDate: data.date ? new Date(data.date).toLocaleDateString() : "",
-            time: data.time || "",
-            status: status,
-            statusColor:
-              status.toLowerCase() === "pending" ? "#FF8D28" :
-              status.toLowerCase() === "approved" ? "#22C55E" :
-              "#EF4444",
-            priority: data.priority || "Normal",
-            isIncoming: true
-          };
-        });
+            return {
+              id: docSnap.id,
+              title: data.title || "Untitled",
+              description: data.description || "",
+              name: data.assignedTo || "HR",
+              createdBy: data.createdBy || "Unknown",
+              dueDate: data.date ? new Date(data.date).toLocaleDateString() : "",
+              time: data.time || "",
+              status: status,
+              statusColor:
+                status.toLowerCase() === "pending" ? "#FF8D28" :
+                status.toLowerCase() === "approved" ? "#22C55E" :
+                "#EF4444",
+              priority: data.priority || "Normal",
+              isIncoming: true,
+              type: "incoming" // Track type for filtering
+            };
+          });
 
-        const combined = [...myList, ...sharedList];
+        const combined = [...myList, ...incomingList];
+        
+        // Remove duplicates based on ID
         const uniqueList = Array.from(
           new Map(combined.map(item => [item.id, item])).values()
         );
@@ -105,11 +117,14 @@ const HRReminder = () => {
     loadReminders();
   }, []);
 
-  // Filter logic
+  // Filter logic: Tabs sirf outgoing reminders ko filter karenge
   const filteredReminders =
     activeTab === "All"
       ? hrReminders
-      : hrReminders.filter(item => item.status.toLowerCase() === activeTab.toLowerCase());
+      : hrReminders.filter(item => 
+          item.type === "outgoing" && 
+          item.status.toLowerCase() === activeTab.toLowerCase()
+        );
 
   // Avatar logic
   const avatarColors = [
@@ -127,15 +142,12 @@ const HRReminder = () => {
       : parts[0][0] || "?";
   };
 
-  // NEW: Status sirf tab dikhao jab reminder HR ne dusre ke liye banaya ho
+  // Status dikhao sirf outgoing reminders ke liye (jo HR ne bheje)
+  // Incoming reminders ka status hide karo kyunki HR action nahi le sakta
   const shouldShowStatus = (item) => {
-    // Agar reminder HR ne khud ke liye banaya (createdBy === "HR" aur incoming nahi)
-    // ya dusre ne HR ko bheja → status hide
-    const isSelfCreated = item.createdBy === currentUser;
-    const isIncoming = item.isIncoming;
-
-    // HR ke liye create kiye hue (self) ya incoming (dusre se) → status hide
-    return !(isSelfCreated || isIncoming);
+    // Debug: Check karo kaunsi reminders ka status show ho raha
+    console.log(`Reminder: ${item.title}, Type: ${item.type}, CreatedBy: ${item.createdBy}, Status: ${item.status}`);
+    return item.type === "outgoing";
   };
 
   return (
@@ -227,7 +239,7 @@ const HRReminder = () => {
                         {item.dueDate} {item.time && `, ${item.time}`}
                       </p>
 
-                      {/* FIXED: Status sirf tab dikhao jab reminder HR ne dusre ke liye banaya ho */}
+                    {/* FIXED: Status sirf tab dikhao jab reminder HR ne dusre ke liye banaya ho */}
                       {shouldShowStatus(item) && (
                         <p
                           className='font-medium text-sm'
