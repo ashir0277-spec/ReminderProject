@@ -6,7 +6,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import profile from '../../assets/profile.svg';
 import menudots from '../../assets/dots-horizontal.svg';
-import { useSearch } from '../../context/SearchContext'; // ✅ ADDED
+import { useSearch } from '../../Context/SearchContext';
 
 const Users = () => {
   // ✅ Load active tab from localStorage on component mount
