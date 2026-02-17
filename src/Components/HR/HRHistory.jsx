@@ -34,23 +34,48 @@ const HRHistory = () => {
     localStorage.setItem('hrHistoryTab', activeTab);
   }, [activeTab]);
 
-  // Fetch HR reminders history
+  // Fetch all relevant reminders
   useEffect(() => {
-    const q = query(
+    // Query 1: HR ne banaye
+    const q1 = query(
       collection(db, "reminders"),
-      where("createdBy", "==", currentUser),
+      where("createdBy", "==", "HR"),
+      orderBy("createdAt", "desc")
+    );
+    // Query 2: CEO ne banaye
+    const q2 = query(
+      collection(db, "reminders"),
+      where("createdBy", "==", "CEO"),
+      orderBy("createdAt", "desc")
+    );
+    // Query 3: CTO ne banaye
+    const q3 = query(
+      collection(db, "reminders"),
+      where("createdBy", "==", "CTO"),
       orderBy("createdAt", "desc")
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setHistory(data);
-    });
+    const mergeAndSet = (...snapshots) => {
+      const map = new Map();
+      snapshots.forEach(snap => {
+        snap.docs.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
+      });
+      // Sort by createdAt desc
+      const merged = Array.from(map.values()).sort((a, b) => {
+        const aTime = a.createdAt?.toDate?.()?.getTime() || 0;
+        const bTime = b.createdAt?.toDate?.()?.getTime() || 0;
+        return bTime - aTime;
+      });
+      setHistory(merged);
+    };
 
-    return () => unsubscribe();
+    let snap1 = null, snap2 = null, snap3 = null;
+
+    const unsub1 = onSnapshot(q1, s => { snap1 = s; if (snap1 && snap2 && snap3) mergeAndSet(snap1, snap2, snap3); });
+    const unsub2 = onSnapshot(q2, s => { snap2 = s; if (snap1 && snap2 && snap3) mergeAndSet(snap1, snap2, snap3); });
+    const unsub3 = onSnapshot(q3, s => { snap3 = s; if (snap1 && snap2 && snap3) mergeAndSet(snap1, snap2, snap3); });
+
+    return () => { unsub1(); unsub2(); unsub3(); };
   }, []);
 
   const toggleSelection = (id, e) => {
@@ -190,21 +215,35 @@ const HRHistory = () => {
     return "bg-gray-100 text-gray-600";
   };
 
+  // Check if reminder belongs to a role (created by OR assigned to OR sharedWith)
+  const belongsToRole = (reminder, role) => {
+    const roleUpper = role.toUpperCase();
+    const createdByRole = (reminder.createdBy || '').toUpperCase() === roleUpper;
+    const assignedToRole = (reminder.assignedTo || '')
+      .split(',')
+      .map(r => r.trim().toUpperCase())
+      .includes(roleUpper);
+    const sharedWithRole = Array.isArray(reminder.sharedWith)
+      ? reminder.sharedWith.some(r => (r || '').toUpperCase() === roleUpper)
+      : false;
+    return createdByRole || assignedToRole || sharedWithRole;
+  };
+
   // Filter by tab
   const filterByTab = (reminder) => {
     if (activeTab === 'all') return true;
-    if (activeTab === 'ceo') return reminder.createdBy === 'CEO';
-    if (activeTab === 'cto') return reminder.createdBy === 'CTO';
-    if (activeTab === 'hr') return reminder.createdBy === 'HR';
+    if (activeTab === 'ceo') return belongsToRole(reminder, 'CEO');
+    if (activeTab === 'cto') return belongsToRole(reminder, 'CTO');
+    if (activeTab === 'hr')  return belongsToRole(reminder, 'HR');
     return true;
   };
 
   const filteredHistory = history.filter(filterByTab);
 
   const allCount = history.length;
-  const ceoCount = history.filter(r => r.createdBy === 'CEO').length;
-  const ctoCount = history.filter(r => r.createdBy === 'CTO').length;
-  const hrCount = history.filter(r => r.createdBy === 'HR').length;
+  const ceoCount = history.filter(r => belongsToRole(r, 'CEO')).length;
+  const ctoCount = history.filter(r => belongsToRole(r, 'CTO')).length;
+  const hrCount  = history.filter(r => belongsToRole(r, 'HR')).length;
 
   return (
     <>
@@ -374,7 +413,7 @@ const HRHistory = () => {
         </div>
 
         {/* History List */}
-        <div className="history-scroll-container mx-4 mt-6 space-y-4 overflow-y-auto max-h-[600px] pr-2" style={{scrollbarWidth:'none'}}>
+        <div className="history-scroll-container mx-4 mt-6 space-y-4 overflow-y-auto max-h-[600px] pr-2">
           {filteredHistory.length === 0 ? (
             <div className="text-center py-10 bg-gray-50 rounded-lg">
               <p className="text-gray-500 text-lg">No reminder history available</p>
@@ -524,7 +563,7 @@ const HRHistory = () => {
             </div>
 
             {/* Content */}
-            <div className='p-6 overflow-y-auto max-h-[calc(90vh-160px)]' style={{scrollbarWidth:'none'}}>
+            <div className='p-6 overflow-y-auto max-h-[calc(90vh-80px)]' style={{scrollbarWidth:'none'}}>
               <div className='space-y-4'>
                 {/* Title */}
                 <div>
@@ -631,22 +670,7 @@ const HRHistory = () => {
               </div>
             </div>
 
-            {/* Footer */}
-            <div className='px-6 py-4 bg-gray-50 border-t border-gray-200 flex gap-3'>
-              <button
-                onClick={closeDetailsModal}
-                className='flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors'
-              >
-                Close
-              </button>
-              <button
-                onClick={(e) => handleDeleteClick(detailsModal.reminder.id, e)}
-                className='flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2'
-              >
-                <IoTrashOutline className='text-base' />
-                Delete
-              </button>
-            </div>
+
           </div>
         </div>
       )}

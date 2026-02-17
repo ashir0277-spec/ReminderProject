@@ -1,4 +1,4 @@
-import React from 'react';
+import { HRNotificationProvider } from './Components/HR/HRNotificationContext';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './Layouts/Pages/Auth/Login';
 import ForgotPassword from './Layouts/Pages/Auth/ForgotPassword';
@@ -33,6 +33,7 @@ import HRNotification from './Components/HR/HRNotification';
 
 function App() {
   return (
+      <HRNotificationProvider>
     <UserProvider>
       <Router>
         <Routes>
@@ -194,6 +195,7 @@ function App() {
         </Routes>
       </Router>
     </UserProvider>
+    </HRNotificationProvider>
   );
 }
 
