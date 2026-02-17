@@ -9,6 +9,7 @@ const Topbar = ({ onMenuClick }) => {
     console.log("Hamburger clicked!");
     onMenuClick();
   };
+   const isLargeScreen = window.innerWidth >= 1024;
 
   return (
     <div className="fixed top-0 left-0 lg:left-[280px] z-20 h-16 w-full lg:w-[calc(100%-280px)] border-b border-gray-300 flex items-center justify-between lg:justify-end px-4 lg:pr-10 gap-3 lg:gap-7 bg-white">
@@ -43,11 +44,14 @@ const Topbar = ({ onMenuClick }) => {
           alt="search"
           className="absolute left-3 w-5 h-5 pointer-events-none"
         />
+       
         <input
           type="search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search reminders by title or description"
+          placeholder={
+            isLargeScreen ?"Search reminders by title or description" : "Search "
+          }
           className="w-full pl-12 pr-10 text-sm outline-none border border-[#E3E4E7] py-3 rounded-lg focus:border-[#0081FF] focus:ring-2 focus:ring-[#0081FF]/20 transition-all"
         />
         {searchQuery && (
