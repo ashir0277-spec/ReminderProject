@@ -19,6 +19,7 @@ import { toast, ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { useSearch } from '../../Context/SearchContext'; 
 
 const UserManagement = () => {
   // Auto-select current date on initial load
@@ -61,6 +62,7 @@ const UserManagement = () => {
   });
   
   const currentUser = sessionStorage.getItem('userRole') || "HR";
+  const { searchQuery } = useSearch(); // ✅ ADDED
 
   // ==================== DATA FETCHING ====================
   const fetchUsers = async () => {
@@ -488,10 +490,18 @@ const UserManagement = () => {
     return true;
   };
 
-  // Show reminders for selected date, or all reminders if no date selected
+  // ✅ UPDATED: search filter added
   const filteredReminders = reminders
     .filter(filterByTab)
     .filter(r => !selectedDate || (r.date && new Date(r.date).toDateString() === selectedDate.toDateString()))
+    .filter(r => {
+      if (!searchQuery.trim()) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        r.title?.toLowerCase().includes(query) ||
+        r.description?.toLowerCase().includes(query)
+      );
+    })
     .sort((a, b) => getPriorityValue(b.priority) - getPriorityValue(a.priority));
 
   const getStatusText = item => {
@@ -651,8 +661,13 @@ const UserManagement = () => {
         </div>
 
         <div className='flex-1 mt-2.5'>
+          {/* ✅ UPDATED: search active hone par heading bhi update hoti hai */}
           <p className='font-semibold mb-4'>
-            {selectedDate ? `Reminders for ${selectedDate.toLocaleDateString()}` : 'All Reminders'}
+            {searchQuery.trim()
+              ? `Search results for "${searchQuery}"`
+              : selectedDate
+                ? `Reminders for ${selectedDate.toLocaleDateString()}`
+                : 'All Reminders'}
             <span className='text-sm text-gray-500 ml-2'>({filteredReminders.length})</span>
           </p>
 
@@ -783,11 +798,15 @@ const UserManagement = () => {
             </div>
           ) : (
             <div className='text-center py-10 bg-gray-50 rounded-lg'>
-              <p className='text-gray-500 text-lg'>📭 No reminders found</p>
+              <p className='text-gray-500 text-lg'>
+                {searchQuery.trim() ? '🔍 No reminders found' : '📭 No reminders found'}
+              </p>
               <p className='text-gray-400 text-sm mt-2'>
-                {selectedDate 
-                  ? `No reminders found on ${selectedDate.toLocaleDateString()}`
-                  : 'Create your first reminder to get started'}
+                {searchQuery.trim()
+                  ? `"${searchQuery}" se koi reminder match nahi hua`
+                  : selectedDate
+                    ? `No reminders found on ${selectedDate.toLocaleDateString()}`
+                    : 'Create your first reminder to get started'}
               </p>
             </div>
           )}

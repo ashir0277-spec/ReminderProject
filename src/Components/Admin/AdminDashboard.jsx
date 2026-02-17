@@ -1,8 +1,5 @@
-  import React from 'react'
 
-
-  import Users from './Users'
-  import Mainfile from './Mainfile'
+ import Users from './Users'
 import StatsCard from '../StatsCard'
       const AdminDashboard = () => {
        
@@ -14,8 +11,7 @@ import StatsCard from '../StatsCard'
                   
       <div className="h-screen px-3 w-full rounded-lg    ">
           <StatsCard/>
-        
-        <Users/>
+          <Users/>
       </div>
     
     

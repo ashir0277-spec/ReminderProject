@@ -6,6 +6,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import profile from '../../assets/profile.svg';
 import menudots from '../../assets/dots-horizontal.svg';
+import { useSearch } from '../../context/SearchContext'; // ✅ ADDED
 
 const Users = () => {
   // ✅ Load active tab from localStorage on component mount
@@ -20,7 +21,7 @@ const Users = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('HR'); // ✅ Changed default from Admin to HR
+  const [role, setRole] = useState('HR');
   const [isActive, setIsActive] = useState(true);
 
   const [openDropdownId, setOpenDropdownId] = useState(null);
@@ -28,7 +29,20 @@ const Users = () => {
 
   const [userData, setUserData] = useState([]);
 
-  const filteredUsers = activeTab === 'All' ? userData : userData.filter((u) => u.role === activeTab);
+  const { searchQuery } = useSearch(); // ✅ ADDED
+
+  // ✅ UPDATED: search filter bhi add kiya tab filter ke saath
+  const filteredUsers = userData
+    .filter((u) => activeTab === 'All' || u.role === activeTab)
+    .filter((u) => {
+      if (!searchQuery.trim()) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        u.name?.toLowerCase().includes(query) ||
+        u.email?.toLowerCase().includes(query) ||
+        u.role?.toLowerCase().includes(query)
+      );
+    });
 
   // ✅ Removed Admin from count
   const count = {
@@ -76,7 +90,6 @@ const Users = () => {
   // ✅ FIXED: Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // Check if click is outside the dropdown menu
       const isClickInsideDropdown = event.target.closest('.dropdown-menu');
       const isClickOnMenuButton = event.target.closest('.menu-button');
       
@@ -98,7 +111,7 @@ const Users = () => {
     setUsername('');
     setEmail('');
     setPassword('');
-    setRole('HR'); // ✅ Changed default
+    setRole('HR');
     setIsActive(true);
     setShowAddModal(true);
   };
@@ -116,7 +129,6 @@ const Users = () => {
     setLoading(true);
 
     try {
-      // 🔹 Create user with secondaryAuth
       const userCredential = await createUserWithEmailAndPassword(
         secondaryAuth,
         email,
@@ -124,7 +136,6 @@ const Users = () => {
       );
       const user = userCredential.user;
 
-      // 🔹 Add user to Firestore
       await addDoc(collection(db, "users"), {
         uid: user.uid,
         fullName: username,
@@ -134,7 +145,6 @@ const Users = () => {
         createdAt: serverTimestamp(),
       });
 
-      // 🔹 Sign out secondary auth to keep admin session safe
       await secondaryAuth.signOut();
 
       toast.success('User created successfully!');
@@ -176,7 +186,6 @@ const Users = () => {
       return;
     }
     
-    // For Admin: only update name
     if (editingUser.role === 'Admin') {
       setLoading(true);
       try {
@@ -196,7 +205,6 @@ const Users = () => {
       return;
     }
     
-    // For other roles: update all fields
     if (!email.trim()) {
       toast.error('Email is required');
       return;
@@ -252,7 +260,11 @@ const Users = () => {
       <div className={`transition-all duration-300 ${anyModalOpen ? 'blur-sm pointer-events-none' : ''}`}>
         <div className="bg-white rounded-lg shadow-sm mt-5 p-3 md:p-6">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-xl font-semibold text-gray-800">User Management</h1>
+            {/* ✅ UPDATED: search active hone par heading update hoti hai */}
+            <h1 className="text-xl font-semibold text-gray-800">
+              {searchQuery.trim() ? `Results for "${searchQuery}"` : 'User Management'}
+              <span className="text-sm text-gray-400 font-normal ml-2">({filteredUsers.length})</span>
+            </h1>
             <button onClick={openAddModal} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-2 whitespace-nowrap rounded-lg font-medium transition-colors disabled:opacity-50">
               + Add User
             </button>
@@ -286,7 +298,6 @@ const Users = () => {
                   </div>
                   
                   <div className="flex items-center gap-4 relative">
-                    {/* ✅ Show status only for non-Admin users */}
                     {user.role !== 'Admin' && (
                       <div className="flex items-center gap-2">
                         <div 
@@ -322,8 +333,15 @@ const Users = () => {
                 </div>
               )) : (
                 <div className="text-center py-10">
-                  <p className="text-gray-500 text-lg">No users found</p>
-                  <p className="text-gray-400 text-sm mt-2">Click "Add User" to create your first user</p>
+                  {/* ✅ UPDATED: search wala empty state */}
+                  <p className="text-gray-500 text-lg">
+                    {searchQuery.trim() ? '🔍 No users found' : 'No users found'}
+                  </p>
+                  <p className="text-gray-400 text-sm mt-2">
+                    {searchQuery.trim()
+                      ? `"${searchQuery}" se koi user match nahi hua`
+                      : 'Click "Add User" to create your first user'}
+                  </p>
                 </div>
               )}
             </div>
@@ -375,7 +393,6 @@ const Users = () => {
 
 // ─── MODAL COMPONENT ─────────────────────────────
 const UserModal = ({ isEdit, title, username, setUsername, email, setEmail, password, setPassword, role, setRole, isActive, setIsActive, onClose, onSubmit, loading }) => {
-  // Check if editing an admin user
   const isAdminEdit = isEdit && role === 'Admin';
 
   return (
@@ -388,7 +405,6 @@ const UserModal = ({ isEdit, title, username, setUsername, email, setEmail, pass
           </div>
           
           {isAdminEdit ? (
-            // ✅ ADMIN EDIT MODAL - Only Name Field
             <div className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
@@ -407,7 +423,6 @@ const UserModal = ({ isEdit, title, username, setUsername, email, setEmail, pass
               </div>
             </div>
           ) : (
-            // ✅ REGULAR USER MODAL - All Fields (HR, CEO, CTO)
             <div className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>

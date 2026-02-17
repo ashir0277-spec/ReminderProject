@@ -1,3 +1,4 @@
+import { SearchProvider } from './Context/SearchContext';
 import { HRNotificationProvider } from './Components/HR/HRNotificationContext';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './Layouts/Pages/Auth/Login';
@@ -33,6 +34,7 @@ import HRNotification from './Components/HR/HRNotification';
 
 function App() {
   return (
+         <SearchProvider>
       <HRNotificationProvider>
     <UserProvider>
       <Router>
@@ -196,6 +198,7 @@ function App() {
       </Router>
     </UserProvider>
     </HRNotificationProvider>
+   </SearchProvider>
   );
 }
 

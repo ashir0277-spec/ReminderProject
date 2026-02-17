@@ -1,14 +1,17 @@
 import { Bell } from 'lucide-react';
-import searchicon from '../../assets/search.svg'
+import searchicon from '../../assets/search.svg';
+import { useSearch } from '../../Context/SearchContext'; 
 
 const Topbar = ({ onMenuClick }) => {
+  const { searchQuery, setSearchQuery } = useSearch();
+
   const handleClick = () => {
     console.log("Hamburger clicked!");
     onMenuClick();
   };
 
   return (
-    <div className="fixed  top-0 left-0 lg:left-[280px] z-20 h-16 w-full lg:w-[calc(100%-280px)] border-b border-gray-300 flex items-center justify-between lg:justify-end px-4 lg:pr-10 gap-3 lg:gap-7 bg-white">
+    <div className="fixed top-0 left-0 lg:left-[280px] z-20 h-16 w-full lg:w-[calc(100%-280px)] border-b border-gray-300 flex items-center justify-between lg:justify-end px-4 lg:pr-10 gap-3 lg:gap-7 bg-white">
       {/* Hamburger button */}
       <button
         onClick={handleClick}
@@ -42,13 +45,23 @@ const Topbar = ({ onMenuClick }) => {
         />
         <input
           type="search"
-          placeholder="Search by name and email"
-          className="w-full pl-12 pr-4 text-sm outline-none border border-[#E3E4E7] py-3 rounded-lg focus:border-[#0081FF] focus:ring-2 focus:ring-[#0081FF]/20 transition-all"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search reminders by title or description"
+          className="w-full pl-12 pr-10 text-sm outline-none border border-[#E3E4E7] py-3 rounded-lg focus:border-[#0081FF] focus:ring-2 focus:ring-[#0081FF]/20 transition-all"
         />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 text-gray-400 hover:text-gray-600 text-base leading-none"
+            aria-label="Clear search"
+          >
+            ✕
+          </button>
+        )}
       </div>
-       
     </div>
-  )
-}
+  );
+};
 
-export default Topbar 
+export default Topbar;
