@@ -413,7 +413,7 @@ const HRHistory = () => {
         </div>
 
         {/* History List */}
-        <div className="history-scroll-container mx-4 mt-6 space-y-4 overflow-y-auto max-h-[600px] pr-2">
+        <div className="history-scroll-container  mt-6 space-y-4 overflow-y-auto max-h-[600px] " style={{scrollbarWidth:'none'}}>
           {filteredHistory.length === 0 ? (
             <div className="text-center py-10 bg-gray-50 rounded-lg">
               <p className="text-gray-500 text-lg">No reminder history available</p>
@@ -431,7 +431,7 @@ const HRHistory = () => {
               return (
                 <div
                   key={item.id}
-                  className={`history-card relative flex items-start border rounded-lg px-4 py-3 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all min-h-[100px] ${
+                  className={`history-card relative flex items-start border rounded-lg px-4  py-3  shadow-sm hover:shadow-xl hover:border-blue-300 transition-all min-h-[100px]   ${
                     isSelected ? 'ring-2 ring-blue-500' : 'border-[#E5E5E5]'
                   } ${selectionMode ? 'cursor-pointer' : ''}`}
                   onClick={(e) => {
