@@ -56,7 +56,7 @@ const Topbar = ({ onMenuClick }) => {
             className="absolute right-3 text-gray-400 hover:text-gray-600 text-base leading-none"
             aria-label="Clear search"
           >
-            ✕
+            
           </button>
         )}
       </div>
