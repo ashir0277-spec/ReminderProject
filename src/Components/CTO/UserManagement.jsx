@@ -21,6 +21,70 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useSearch } from '../../Context/SearchContext'; 
 
+// ── Custom DatePicker Header — better month/year navigation ──────────────────
+const MONTHS = [
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December"
+];
+
+const CustomDateHeader = ({
+  date,
+  changeYear,
+  changeMonth,
+  decreaseMonth,
+  increaseMonth,
+  prevMonthButtonDisabled,
+  nextMonthButtonDisabled,
+}) => {
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
+
+  return (
+    <div className="flex items-center justify-between px-2 py-2 gap-1">
+      <button
+        onClick={decreaseMonth}
+        disabled={prevMonthButtonDisabled}
+        type="button"
+        className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 transition-colors text-gray-500"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+      </button>
+
+      <div className="flex gap-1.5 flex-1 justify-center">
+        <select
+          value={MONTHS[date.getMonth()]}
+          onChange={({ target: { value } }) => changeMonth(MONTHS.indexOf(value))}
+          className="text-sm font-semibold text-gray-800 border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:border-blue-400 cursor-pointer hover:border-blue-300 transition-colors"
+        >
+          {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+        </select>
+
+        <select
+          value={date.getFullYear()}
+          onChange={({ target: { value } }) => changeYear(Number(value))}
+          className="text-sm font-semibold text-gray-800 border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:border-blue-400 cursor-pointer hover:border-blue-300 transition-colors"
+        >
+          {years.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+
+      <button
+        onClick={increaseMonth}
+        disabled={nextMonthButtonDisabled}
+        type="button"
+        className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 transition-colors text-gray-500"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+      </button>
+    </div>
+  );
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
 const UserManagement = () => {
   // Auto-select current date on initial load
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -599,6 +663,35 @@ const UserManagement = () => {
         .react-calendar__month-view__days__day--weekend {
           color: inherit;
         }
+
+        /* DatePicker popup polish */
+        .react-datepicker {
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+          font-family: inherit;
+          overflow: hidden;
+        }
+        .react-datepicker__header {
+          background: #fff;
+          border-bottom: 1px solid #f3f4f6;
+          padding-top: 8px;
+        }
+        .react-datepicker__day--selected {
+          background-color: #0081FF !important;
+          border-radius: 8px !important;
+        }
+        .react-datepicker__day:hover {
+          background-color: #eff6ff !important;
+          border-radius: 8px !important;
+        }
+        .react-datepicker__day--keyboard-selected {
+          background-color: #bfdbfe !important;
+          border-radius: 8px !important;
+        }
+        .react-datepicker__day {
+          border-radius: 8px;
+        }
       `}</style>
       
       <div className='bg-white mt-6 overflow-hidden rounded-xl px-4 relative'>
@@ -869,7 +962,7 @@ const UserManagement = () => {
                 </div>
               </div>
 
-              {/* Custom Date Picker */}
+              {/* ── Date Picker with custom header ── */}
               <div>
                 <label className='block text-sm font-medium text-gray-700 mb-1.5'>
                   Date <span className='text-red-500'>*</span>
@@ -879,6 +972,7 @@ const UserManagement = () => {
                   onChange={(date) => setNewReminder({ ...newReminder, date })}
                   dateFormat="yyyy-MM-dd"
                   placeholderText="Select date"
+                  renderCustomHeader={CustomDateHeader}
                   className='w-full border border-gray-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg px-4 py-2.5 text-sm transition-colors cursor-pointer'
                   wrapperClassName="w-full"
                 />

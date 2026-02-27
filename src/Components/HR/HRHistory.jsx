@@ -36,19 +36,16 @@ const HRHistory = () => {
 
   // Fetch all relevant reminders
   useEffect(() => {
-    // Query 1: HR ne banaye
     const q1 = query(
       collection(db, "reminders"),
       where("createdBy", "==", "HR"),
       orderBy("createdAt", "desc")
     );
-    // Query 2: CEO ne banaye
     const q2 = query(
       collection(db, "reminders"),
       where("createdBy", "==", "CEO"),
       orderBy("createdAt", "desc")
     );
-    // Query 3: CTO ne banaye
     const q3 = query(
       collection(db, "reminders"),
       where("createdBy", "==", "CTO"),
@@ -60,7 +57,6 @@ const HRHistory = () => {
       snapshots.forEach(snap => {
         snap.docs.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
       });
-      // Sort by createdAt desc
       const merged = Array.from(map.values()).sort((a, b) => {
         const aTime = a.createdAt?.toDate?.()?.getTime() || 0;
         const bTime = b.createdAt?.toDate?.()?.getTime() || 0;
@@ -164,7 +160,6 @@ const HRHistory = () => {
     setDeleteModal({ show: false, reminderId: null, isMultiple: false, deleting: false });
   };
 
-  // Format time to AM/PM
   const formatTime = (time24) => {
     if (!time24) return '';
     const [hours, minutes] = time24.split(':');
@@ -174,20 +169,16 @@ const HRHistory = () => {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  // Format date
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString + 'T00:00:00');
-    
     const day = date.getDate();
     const suffix = ['th', 'st', 'nd', 'rd'];
     const relevantDigits = (day < 30) ? day % 20 : day % 30;
     const daySuffix = (relevantDigits <= 3) ? suffix[relevantDigits] : suffix[0];
-    
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const month = monthNames[date.getMonth()];
     const year = date.getFullYear();
-    
     return `${day}${daySuffix} ${month} ${year}`;
   };
 
@@ -199,7 +190,6 @@ const HRHistory = () => {
     setDetailsModal({ show: false, reminder: null });
   };
 
-  // Border color by status
   const getBorderColor = (status) => {
     if (status === "approved") return "border-l-green-500";
     if (status === "reject") return "border-l-red-500";
@@ -207,7 +197,6 @@ const HRHistory = () => {
     return "border-l-gray-400";
   };
 
-  // Status badge color
   const getStatusBadgeColor = (status) => {
     if (status === "approved") return "bg-green-100 text-green-600";
     if (status === "reject") return "bg-red-100 text-red-600";
@@ -215,7 +204,6 @@ const HRHistory = () => {
     return "bg-gray-100 text-gray-600";
   };
 
-  // Check if reminder belongs to a role (created by OR assigned to OR sharedWith)
   const belongsToRole = (reminder, role) => {
     const roleUpper = role.toUpperCase();
     const createdByRole = (reminder.createdBy || '').toUpperCase() === roleUpper;
@@ -229,7 +217,6 @@ const HRHistory = () => {
     return createdByRole || assignedToRole || sharedWithRole;
   };
 
-  // Filter by tab
   const filterByTab = (reminder) => {
     if (activeTab === 'all') return true;
     if (activeTab === 'ceo') return belongsToRole(reminder, 'CEO');
@@ -251,43 +238,34 @@ const HRHistory = () => {
         .history-scroll-container::-webkit-scrollbar {
           width: 8px;
         }
-        
         .history-scroll-container::-webkit-scrollbar-track {
           background: #f1f5f9;
           border-radius: 10px;
         }
-        
         .history-scroll-container::-webkit-scrollbar-thumb {
           background: #cbd5e1;
           border-radius: 10px;
         }
-        
         .history-scroll-container::-webkit-scrollbar-thumb:hover {
           background: #94a3b8;
         }
-
         .tabs-container::-webkit-scrollbar {
           width: 0px;
           height: 0px;
         }
-
         @keyframes progress {
           0% { width: 0%; }
           100% { width: 100%; }
         }
-
         .animate-progress {
           animation: progress 1.5s ease-in-out infinite;
         }
-
         .history-card {
           position: relative;
         }
-
         .history-card:hover .hover-hint {
           opacity: 1;
         }
-
         .hover-hint {
           opacity: 0;
           transition: opacity 0.3s ease;
@@ -366,11 +344,7 @@ const HRHistory = () => {
             className={`px-4 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
               activeTab === 'all' ? 'bg-[#0081FFFC] text-white' : 'text-[#2C3E50] bg-gray-100 hover:bg-gray-200'
             }`}
-            onClick={() => {
-              setActiveTab('all');
-              setSelectedItems([]);
-              setSelectionMode(false);
-            }}
+            onClick={() => { setActiveTab('all'); setSelectedItems([]); setSelectionMode(false); }}
           >
             All ({allCount})
           </button>
@@ -378,11 +352,7 @@ const HRHistory = () => {
             className={`px-4 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
               activeTab === 'ceo' ? 'bg-[#0081FFFC] text-white' : 'text-[#2C3E50] bg-gray-100 hover:bg-gray-200'
             }`}
-            onClick={() => {
-              setActiveTab('ceo');
-              setSelectedItems([]);
-              setSelectionMode(false);
-            }}
+            onClick={() => { setActiveTab('ceo'); setSelectedItems([]); setSelectionMode(false); }}
           >
             CEO ({ceoCount})
           </button>
@@ -390,11 +360,7 @@ const HRHistory = () => {
             className={`px-4 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
               activeTab === 'cto' ? 'bg-[#0081FFFC] text-white' : 'text-[#2C3E50] bg-gray-100 hover:bg-gray-200'
             }`}
-            onClick={() => {
-              setActiveTab('cto');
-              setSelectedItems([]);
-              setSelectionMode(false);
-            }}
+            onClick={() => { setActiveTab('cto'); setSelectedItems([]); setSelectionMode(false); }}
           >
             CTO ({ctoCount})
           </button>
@@ -402,18 +368,14 @@ const HRHistory = () => {
             className={`px-4 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
               activeTab === 'hr' ? 'bg-[#0081FFFC] text-white' : 'text-[#2C3E50] bg-gray-100 hover:bg-gray-200'
             }`}
-            onClick={() => {
-              setActiveTab('hr');
-              setSelectedItems([]);
-              setSelectionMode(false);
-            }}
+            onClick={() => { setActiveTab('hr'); setSelectedItems([]); setSelectionMode(false); }}
           >
             HR ({hrCount})
           </button>
         </div>
 
         {/* History List */}
-        <div className="history-scroll-container  mt-6 space-y-4 overflow-y-auto max-h-[600px] " style={{scrollbarWidth:'none'}}>
+        <div className="history-scroll-container mt-6 space-y-4 overflow-y-auto max-h-[600px]" style={{scrollbarWidth:'none'}}>
           {filteredHistory.length === 0 ? (
             <div className="text-center py-10 bg-gray-50 rounded-lg">
               <p className="text-gray-500 text-lg">No reminder history available</p>
@@ -431,7 +393,7 @@ const HRHistory = () => {
               return (
                 <div
                   key={item.id}
-                  className={`history-card relative flex items-start border rounded-lg px-4  py-3  shadow-sm hover:shadow-xl hover:border-blue-300 transition-all min-h-[100px]   ${
+                  className={`history-card relative flex items-start border rounded-lg px-4 py-3 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all min-h-[100px] ${
                     isSelected ? 'ring-2 ring-blue-500' : 'border-[#E5E5E5]'
                   } ${selectionMode ? 'cursor-pointer' : ''}`}
                   onClick={(e) => {
@@ -442,15 +404,15 @@ const HRHistory = () => {
                     }
                   }}
                 >
-                  {/* Checkbox - shows only when selection mode is active */}
+                  {/* Checkbox - TOP RIGHT in selection mode */}
                   {selectionMode && (
-                    <div 
-                      className="absolute top-4 left-4 z-10"
+                    <div
+                      className="absolute top-3 right-3 z-10"
                       onClick={(e) => toggleSelection(item.id, e)}
                     >
                       <div className={`w-6 h-6 border-2 rounded-md flex items-center justify-center cursor-pointer transition-all ${
-                        isSelected 
-                          ? 'bg-blue-600 border-blue-600 scale-110' 
+                        isSelected
+                          ? 'bg-blue-600 border-blue-600 scale-110'
                           : 'bg-white border-gray-300 hover:border-blue-400'
                       }`}>
                         {isSelected && (
@@ -462,7 +424,7 @@ const HRHistory = () => {
                     </div>
                   )}
 
-                  {/* Three Dots - Top Right */}
+                  {/* Three Dots - Top Right (only when NOT in selection mode) */}
                   {!selectionMode && (
                     <div className="absolute top-3 right-3 z-10">
                       <button
@@ -475,7 +437,6 @@ const HRHistory = () => {
                         <IoEllipsisVertical className="text-base text-gray-600" />
                       </button>
 
-                      {/* Popup Menu */}
                       {activePopup === item.id && (
                         <>
                           <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
@@ -487,8 +448,6 @@ const HRHistory = () => {
                               <span className="text-red-600 font-medium">Delete</span>
                             </button>
                           </div>
-                          
-                          {/* Overlay to close popup */}
                           <div
                             className="fixed inset-0 z-40"
                             onClick={(e) => {
@@ -502,13 +461,8 @@ const HRHistory = () => {
                   )}
 
                   {/* Reminder Info */}
-                  <div
-                    className={`border-l-[3px] space-y-1 flex-1 ${getBorderColor(item.status)} ${selectionMode ? 'pl-10' : 'pl-4'} pr-12 pb-8`}
-                  >
-                    <p className="text-base font-semibold">
-                      {item.title}
-                    </p>
-
+                  <div className={`border-l-[3px] space-y-1 flex-1 ${getBorderColor(item.status)} pl-4 pr-12 pb-8`}>
+                    <p className="text-base font-semibold">{item.title}</p>
                     <p className="text-[#575B74] font-medium text-sm">
                       To: {item.assignedTo || "All Employees"}
                     </p>
@@ -522,11 +476,12 @@ const HRHistory = () => {
 
                   {/* Status Badge - Bottom Right */}
                   <div className="absolute bottom-3 right-3">
-                    <span
-                      className={`text-xs font-semibold px-3 py-1 rounded-full ${getStatusBadgeColor(item.status)}`}
-                    >
-                      {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                    </span>
+                    {/* Hide status badge in selection mode to avoid overlap with checkbox */}
+                    {!selectionMode && (
+                      <span className={`text-xs font-semibold px-3 py-1 rounded-full ${getStatusBadgeColor(item.status)}`}>
+                        {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                      </span>
+                    )}
                   </div>
 
                   {/* Hover Hint */}
@@ -545,33 +500,23 @@ const HRHistory = () => {
       {/* Details Modal */}
       {detailsModal.show && detailsModal.reminder && (
         <div className='fixed inset-0 flex items-center justify-center z-50 p-4'>
-          <div 
-            className='absolute inset-0 bg-black/50' 
-            onClick={closeDetailsModal}
-          ></div>
+          <div className='absolute inset-0 bg-black/50' onClick={closeDetailsModal}></div>
           
           <div className='relative bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden z-30'>
-            {/* Simple Header */}
             <div className='bg-white px-6 py-4 border-b border-gray-200 flex justify-between items-center'>
               <h2 className='text-xl font-semibold text-gray-800'>Reminder Details</h2>
-              <button
-                onClick={closeDetailsModal}
-                className='p-1.5 hover:bg-gray-100 rounded-full transition-colors'
-              >
+              <button onClick={closeDetailsModal} className='p-1.5 hover:bg-gray-100 rounded-full transition-colors'>
                 <IoClose className='text-2xl text-gray-600' />
               </button>
             </div>
 
-            {/* Content */}
             <div className='p-6 overflow-y-auto max-h-[calc(90vh-80px)]' style={{scrollbarWidth:'none'}}>
               <div className='space-y-4'>
-                {/* Title */}
                 <div>
                   <label className='block text-xs font-medium text-gray-500 mb-1.5'>Title</label>
                   <p className='text-base font-semibold text-gray-900'>{detailsModal.reminder.title}</p>
                 </div>
 
-                {/* Description */}
                 {detailsModal.reminder.description && (
                   <div>
                     <label className='block text-xs font-medium text-gray-500 mb-1.5'>Description</label>
@@ -579,9 +524,7 @@ const HRHistory = () => {
                   </div>
                 )}
 
-                {/* Grid Layout */}
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4 pt-2'>
-                  {/* Priority */}
                   {detailsModal.reminder.priority && (
                     <div>
                       <label className='block text-xs font-medium text-gray-500 mb-1.5'>Priority</label>
@@ -590,36 +533,26 @@ const HRHistory = () => {
                       </span>
                     </div>
                   )}
-
-                  {/* Created By */}
                   <div>
                     <label className='block text-xs font-medium text-gray-500 mb-1.5'>Created By</label>
                     <p className='text-sm font-medium text-gray-900'>{detailsModal.reminder.createdBy}</p>
                   </div>
-
-                  {/* Assigned To */}
                   <div>
                     <label className='block text-xs font-medium text-gray-500 mb-1.5'>Assigned To</label>
                     <p className='text-sm font-medium text-gray-900'>{detailsModal.reminder.assignedTo || "All Employees"}</p>
                   </div>
-
-                  {/* Date */}
                   {detailsModal.reminder.date && (
                     <div>
                       <label className='block text-xs font-medium text-gray-500 mb-1.5'>Date</label>
                       <p className='text-sm font-medium text-gray-900'>{formatDate(detailsModal.reminder.date)}</p>
                     </div>
                   )}
-
-                  {/* Time */}
                   {detailsModal.reminder.time && (
                     <div>
                       <label className='block text-xs font-medium text-gray-500 mb-1.5'>Time</label>
                       <p className='text-sm font-medium text-gray-900'>{formatTime(detailsModal.reminder.time)}</p>
                     </div>
                   )}
-
-                  {/* Alert Time */}
                   {detailsModal.reminder.alertTime && (
                     <div>
                       <label className='block text-xs font-medium text-gray-500 mb-1.5 flex items-center gap-1'>
@@ -631,7 +564,6 @@ const HRHistory = () => {
                   )}
                 </div>
 
-                {/* Status */}
                 <div className='pt-2'>
                   <label className='block text-xs font-medium text-gray-500 mb-2'>Status</label>
                   <div className={`p-4 rounded-lg border ${
@@ -669,8 +601,6 @@ const HRHistory = () => {
                 </div>
               </div>
             </div>
-
-
           </div>
         </div>
       )}

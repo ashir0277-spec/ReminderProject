@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from './CEOSidebar'
-import Topbar from '../Admin/Topbar'
 import user from '../../assets/user-01.svg'
 import { doc, setDoc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase'
+import { User } from 'lucide-react'
 
 const CEOSettings = () => {
   const [name, setName] = useState('CEO')
@@ -35,15 +35,12 @@ const CEOSettings = () => {
     fetchProfile()
   }, [])
 
-  // 🔹 Save to Firebase (CREATE + UPDATE safe)
+  // 🔹 Save to Firebase
   const handleSave = async () => {
     try {
       await setDoc(
         doc(db, 'users', 'CEO'),
-        {
-          name,
-          email
-        },
+        { name, email },
         { merge: true }
       )
 
@@ -62,21 +59,23 @@ const CEOSettings = () => {
   }
 
   return (
-    <>
+    <div className="flex min-h-screen bg-[#F6F7FB]">
+      {/* Sidebar */}
       <Sidebar />
 
-      <div className='mx-3'>
-        <h1 className='font-semibold text-2xl'>Settings</h1>
-        <p className='text-[#80849C] text-sm font-medium'>
+      {/* Main Content */}
+      <div className="flex-1  px-6 py-4">
+        <h1 className="font-semibold text-2xl">Settings</h1>
+        <p className="text-[#80849C] text-sm font-medium">
           Manage your account and preferences
         </p>
 
-        <div className='pl-4 flex w-full rounded-md border border-[#E5E5E5] mt-4 py-4 items-center'>
+        <div className="flex items-center mt-6 p-4 rounded-md border border-[#E5E5E5] bg-white">
           {/* User Icon */}
-          <img src={user} alt="" className='mx-4' />
+          <User size={28}/>
 
           {/* Inputs */}
-          <div className='flex flex-col pl-4 w-full'>
+          <div className="flex flex-col w-full pl-4">
             <input
               type="text"
               value={name}
@@ -84,7 +83,7 @@ const CEOSettings = () => {
                 setName(e.target.value)
                 setIsEditing(true)
               }}
-              className='text-xl font-medium  outline-gray-300'
+              className="text-xl font-medium outline-none"
             />
 
             <input
@@ -94,23 +93,23 @@ const CEOSettings = () => {
                 setEmail(e.target.value)
                 setIsEditing(true)
               }}
-              className='text-[#575B74] outline-gray-300 w-[80%] text-sm font-medium  outline-gray-3 mt-1'
-              placeholder='ceoexample@gmail.com'
+              className="text-[#575B74] outline-none w-[80%] text-sm font-medium mt-1 border border-gray-400 rounded-sm px-4 py-1"
+              placeholder="ceoexample@gmail.com"
             />
 
-            {/* Buttons (ONLY when editing) */}
+            {/* Buttons */}
             {isEditing && (
-              <div className='flex gap-3 px-4 mt-4'>
+              <div className="flex gap-3 mt-4">
                 <button
                   onClick={handleSave}
-                  className='bg-blue-600 text-white px-5 py-2 rounded-md text-sm'
+                  className="bg-blue-600 text-white px-5 py-2 rounded-md text-sm"
                 >
                   Save
                 </button>
 
                 <button
                   onClick={handleCancel}
-                  className='bg-gray-200 text-gray-700 px-5 py-2 rounded-md text-sm'
+                  className="bg-gray-200 text-gray-700 px-5 py-2 rounded-md text-sm"
                 >
                   Cancel
                 </button>
@@ -119,7 +118,7 @@ const CEOSettings = () => {
           </div>
         </div>
       </div>
-    </>
+    </div>
   )
 }
 
