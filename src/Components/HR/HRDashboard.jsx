@@ -46,11 +46,7 @@ const HRDashboard = () => {
   const [selectAllCTO, setSelectAllCTO] = useState(false);
   const [selectAllHR, setSelectAllHR] = useState(false);
 
-  const [users, setUsers] = useState({
-    HR: [],
-    CTO: [],
-    CEO: []
-  });
+  const [users, setUsers] = useState({ HR: [], CTO: [], CEO: [] });
   const [usersLoading, setUsersLoading] = useState(false);
 
   useEffect(() => {
@@ -62,11 +58,7 @@ const HRDashboard = () => {
     setUsersLoading(true);
     try {
       const snapshot = await getDocs(collection(db, "users"));
-      const fetchedUsers = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
+      const fetchedUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setUsers({
         HR: fetchedUsers.filter(u => u.role === 'HR'),
         CTO: fetchedUsers.filter(u => u.role === 'CTO'),
@@ -90,7 +82,6 @@ const HRDashboard = () => {
       if (assignedEmailQuery) queries.push(assignedEmailQuery);
 
       const snapshots = await Promise.all(queries.map(q => getDocs(q)));
-
       const allReminders = snapshots.flatMap(snap => snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
       const uniqueMap = new Map();
@@ -109,20 +100,14 @@ const HRDashboard = () => {
   const toggleUserSelection = (user) => {
     setSelectedUsers(prev => {
       const exists = prev.find(u => u.id === user.id);
-      if (exists) {
-        return prev.filter(u => u.id !== user.id);
-      } else {
-        return [...prev, user];
-      }
+      if (exists) return prev.filter(u => u.id !== user.id);
+      return [...prev, user];
     });
   };
 
   const handleRoleClick = (role) => {
     const roleUsers = users[role] || [];
-    if (roleUsers.length === 1) {
-      toggleUserSelection(roleUsers[0]);
-      return;
-    }
+    if (roleUsers.length === 1) { toggleUserSelection(roleUsers[0]); return; }
     setExpandedRole(expandedRole === role ? null : role);
   };
 
@@ -132,10 +117,7 @@ const HRDashboard = () => {
       setSelectAllCTO(false);
     } else {
       const ctoUsers = users.CTO || [];
-      setSelectedUsers(prev => {
-        const nonCTO = prev.filter(u => u.role !== 'CTO');
-        return [...nonCTO, ...ctoUsers];
-      });
+      setSelectedUsers(prev => [...prev.filter(u => u.role !== 'CTO'), ...ctoUsers]);
       setSelectAllCTO(true);
     }
     setTimeout(() => setExpandedRole(null), 200);
@@ -147,10 +129,7 @@ const HRDashboard = () => {
       setSelectAllHR(false);
     } else {
       const hrUsers = users.HR || [];
-      setSelectedUsers(prev => {
-        const nonHR = prev.filter(u => u.role !== 'HR');
-        return [...nonHR, ...hrUsers];
-      });
+      setSelectedUsers(prev => [...prev.filter(u => u.role !== 'HR'), ...hrUsers]);
       setSelectAllHR(true);
     }
     setTimeout(() => setExpandedRole(null), 200);
@@ -159,68 +138,38 @@ const HRDashboard = () => {
   const confirmAssignment = () => {
     const assignedRoles = [...new Set(selectedUsers.map(u => u.role))].join(', ');
     const assignedEmails = selectedUsers.map(u => u.email);
-
     setNewReminder(prev => ({
       ...prev,
       assignTo: assignedRoles.trim() || '',
       assignedEmails: assignedEmails || []
     }));
-
     setShowAssignDropdown(false);
     setExpandedRole(null);
   };
 
   const handleInputChange = (e) => {
-    setNewReminder({
-      ...newReminder,
-      [e.target.name]: e.target.value
-    });
+    setNewReminder({ ...newReminder, [e.target.name]: e.target.value });
   };
 
   const createReminder = async () => {
     if (!newReminder.title.trim()) {
-      toast.error("Please enter a title for the reminder.", {
-        position: "top-center",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      });
+      toast.error("Please enter a title for the reminder.", { position: "top-center", autoClose: 3000 });
       return;
     }
-
     if (!newReminder.date) {
-      toast.error("Please select a date.", {
-        position: "top-center",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      });
+      toast.error("Please select a date.", { position: "top-center", autoClose: 3000 });
       return;
     }
-
     if (!newReminder.time) {
-      toast.error("Please select a time.", {
-        position: "top-center",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      });
+      toast.error("Please select a time.", { position: "top-center", autoClose: 3000 });
       return;
     }
 
     try {
       const assignedRoles = [...new Set(selectedUsers.map(u => u.role))];
-      
-      // Fixed: Only include current user in sharedWith if assigning to others
-      const sharedWith = selectedUsers.length > 0 
+      const sharedWith = selectedUsers.length > 0
         ? [...new Set([...assignedRoles, currentUser])]
-        : [currentUser]; // If no one assigned, only current user
+        : [currentUser];
 
       await addDoc(collection(db, "reminders"), {
         title: newReminder.title.trim(),
@@ -238,35 +187,16 @@ const HRDashboard = () => {
         createdAt: serverTimestamp(),
       });
 
-      toast.success("Reminder created successfully!", {
-        position: "top-center",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      });
-      
+      toast.success("Reminder created successfully!", { position: "top-center", autoClose: 3000 });
       setShowModal(false);
-      setNewReminder({
-        title: '', description: '', priority: 'Normal',
-        date: null, time: null, alertTime: null, assignTo: '', assignedEmails: []
-      });
+      setNewReminder({ title: '', description: '', priority: 'Normal', date: null, time: null, alertTime: null, assignTo: '', assignedEmails: [] });
       setSelectedUsers([]);
       setSelectAllCTO(false);
       setSelectAllHR(false);
-
       fetchReminders();
     } catch (error) {
       console.error("Create error:", error);
-      toast.error("Failed to create reminder. Please try again.", {
-        position: "top-center",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      });
+      toast.error("Failed to create reminder. Please try again.", { position: "top-center", autoClose: 3000 });
     }
   };
 
@@ -278,64 +208,28 @@ const HRDashboard = () => {
         starredBy: !currentStarred ? currentUser : null,
         starredAt: !currentStarred ? serverTimestamp() : null
       });
-      setReminders(prev => prev.map(r =>
-        r.id === id ? { ...r, starred: !currentStarred } : r
-      ));
-      toast.success(!currentStarred ? "⭐ Starred!" : "Star removed", {
-        position: "top-center",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      });
+      setReminders(prev => prev.map(r => r.id === id ? { ...r, starred: !currentStarred } : r));
+      toast.success(!currentStarred ? "⭐ Starred!" : "Star removed", { position: "top-center", autoClose: 3000 });
     } catch (err) {
-      toast.error("Failed to update star", {
-        position: "top-center",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      });
-      console.error(err);
+      toast.error("Failed to update star", { position: "top-center", autoClose: 3000 });
     }
   };
 
   const shouldShowStatus = (item) => {
     const assignedRoles = (item.assignedTo || '').split(', ').filter(Boolean);
-    const isOnlyHR = (assignedRoles.length === 0 || 
-                     (assignedRoles.length === 1 && assignedRoles[0] === 'HR'));
-
-    if (isOnlyHR && item.createdBy === currentUser) {
-      return false;
-    }
-
+    const isOnlyHR = (assignedRoles.length === 0 || (assignedRoles.length === 1 && assignedRoles[0] === 'HR'));
+    if (isOnlyHR && item.createdBy === currentUser) return false;
     return true;
   };
 
-  // Fixed filter logic
   const filterByTab = (reminder) => {
-    if (activeTab === 'my') {
-      // My Reminders: Only show reminders I created
-      return reminder.createdBy === currentUser;
-    }
-    if (activeTab === 'sharedWithMe') {
-      // Shared With Me: Reminders others created and shared with me
-      return reminder.sharedWith?.includes(currentUser) && reminder.createdBy !== currentUser;
-    }
-    if (activeTab === 'sharedByMe') {
-      // Shared By Me: Reminders I created AND assigned to others (not just to myself)
-      return reminder.createdBy === currentUser && 
-             reminder.assignedTo && 
-             reminder.assignedTo.trim() !== '';
-    }
+    if (activeTab === 'my') return reminder.createdBy === currentUser;
+    if (activeTab === 'sharedWithMe') return reminder.sharedWith?.includes(currentUser) && reminder.createdBy !== currentUser;
+    if (activeTab === 'sharedByMe') return reminder.createdBy === currentUser && reminder.assignedTo && reminder.assignedTo.trim() !== '';
     return true;
   };
 
   const filteredReminders = reminders.filter(filterByTab);
-
-  // Calculate counts properly
   const myRemindersCount = reminders.filter(r => r.createdBy === currentUser).length;
   const sharedWithMeCount = reminders.filter(r => r.sharedWith?.includes(currentUser) && r.createdBy !== currentUser).length;
   const sharedByMeCount = reminders.filter(r => r.createdBy === currentUser && r.assignedTo && r.assignedTo.trim() !== '').length;
@@ -343,23 +237,43 @@ const HRDashboard = () => {
   return (
     <>
       <style>{`
-        .reminders-scroll-container::-webkit-scrollbar {
-          width: 8px;
+        .reminders-scroll-container::-webkit-scrollbar { width: 8px; }
+        .reminders-scroll-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+        .reminders-scroll-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .reminders-scroll-container::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* ── Better DatePicker month/year header ── */
+        .react-datepicker { font-family: inherit; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); overflow: hidden; }
+        .react-datepicker__header { background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 12px 8px 8px; }
+        .react-datepicker__current-month { display: none; }
+        .react-datepicker__month-dropdown-container,
+        .react-datepicker__year-dropdown-container { margin: 0 4px; }
+        .react-datepicker__month-select,
+        .react-datepicker__year-select {
+          background: white;
+          border: 1px solid #cbd5e1;
+          border-radius: 8px;
+          padding: 4px 8px;
+          font-size: 13px;
+          font-weight: 600;
+          color: #1e293b;
+          cursor: pointer;
+          outline: none;
+          transition: border-color 0.15s;
         }
-        
-        .reminders-scroll-container::-webkit-scrollbar-track {
-          background: #f1f5f9;
-          border-radius: 10px;
-        }
-        
-        .reminders-scroll-container::-webkit-scrollbar-thumb {
-          background: #cbd5e1;
-          border-radius: 10px;
-        }
-        
-        .reminders-scroll-container::-webkit-scrollbar-thumb:hover {
-          background: #94a3b8;
-        }
+        .react-datepicker__month-select:focus,
+        .react-datepicker__year-select:focus { border-color: #0081ff; box-shadow: 0 0 0 2px rgba(0,129,255,0.15); }
+        .react-datepicker__navigation { top: 14px; }
+        .react-datepicker__navigation-icon::before { border-color: #64748b; }
+        .react-datepicker__day--selected,
+        .react-datepicker__day--keyboard-selected { background-color: #0081ff !important; border-radius: 8px !important; font-weight: 600; }
+        .react-datepicker__day:hover { background-color: #e0f0ff !important; border-radius: 8px !important; }
+        .react-datepicker__day { border-radius: 8px; font-size: 13px; }
+        .react-datepicker__day-name { font-size: 11px; color: #94a3b8; font-weight: 600; }
+        .react-datepicker__time-container { border-left: 1px solid #e2e8f0; }
+        .react-datepicker__time-list-item--selected { background-color: #0081ff !important; }
+        .react-datepicker__time-list-item:hover { background-color: #e0f0ff !important; }
+        .react-datepicker-popper { z-index: 9999 !important; }
       `}</style>
 
       <ToastContainer />
@@ -377,28 +291,22 @@ const HRDashboard = () => {
           </button>
         </div>
 
-        {/* Tabs - Fixed */}
+        {/* Tabs */}
         <div className='flex gap-2 mb-5 whitespace-nowrap overflow-x-auto' style={{scrollbarWidth: 'none'}}>
           <button
-            className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
-              activeTab === 'my' ? 'bg-[#0081FFFC] text-white' : 'text-[#2C3E50] bg-gray-100 hover:bg-gray-200'
-            }`}
+            className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${activeTab === 'my' ? 'bg-[#0081FFFC] text-white' : 'text-[#2C3E50] bg-gray-100 hover:bg-gray-200'}`}
             onClick={() => setActiveTab('my')}
           >
             My Reminders ({myRemindersCount})
           </button>
           <button
-            className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
-              activeTab === 'sharedWithMe' ? 'bg-[#0081FFFC] text-white' : 'text-[#2C3E50] bg-gray-100 hover:bg-gray-200'
-            }`}
+            className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${activeTab === 'sharedWithMe' ? 'bg-[#0081FFFC] text-white' : 'text-[#2C3E50] bg-gray-100 hover:bg-gray-200'}`}
             onClick={() => setActiveTab('sharedWithMe')}
           >
             Shared With Me ({sharedWithMeCount})
           </button>
           <button
-            className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
-              activeTab === 'sharedByMe' ? 'bg-[#0081FFFC] text-white' : 'text-[#2C3E50] bg-gray-100 hover:bg-gray-200'
-            }`}
+            className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${activeTab === 'sharedByMe' ? 'bg-[#0081FFFC] text-white' : 'text-[#2C3E50] bg-gray-100 hover:bg-gray-200'}`}
             onClick={() => setActiveTab('sharedByMe')}
           >
             Shared By Me ({sharedByMeCount})
@@ -409,86 +317,68 @@ const HRDashboard = () => {
           <p className="text-center text-gray-400 mt-10">No reminders found</p>
         ) : (
           <div className='reminders-scroll-container max-h-[600px] overflow-y-auto pr-2' style={{scrollbarWidth:'none'}}>
-            {filteredReminders.map((item) => {
-              return (
-                <div
-                  key={item.id}
-                  className='border border-[#E5E5E5] shadow-md px-4 py-4 mt-6 rounded-lg hover:shadow-lg transition-shadow'
-                >
-                  <div className='flex justify-between'>
-                    <h1 className='text-sm font-semibold'>{item.title}</h1>
-                    <p className='text-[#D4183D] text-xs'>! {item.priority}</p>
-                  </div>
-
-                  {item.description && (
-                    <p className='text-xs text-gray-600 mt-2'>
-                      {item.description}
-                    </p>
-                  )}
-
-                  <div className='flex gap-2 mt-3'>
-                    <img src={user01} className='' alt="user" />
-                    <p className='text-xs text-gray-600'>
-                      Created by: <span className='font-medium'>{item.createdBy}</span>
-                    </p>
-                  </div>
-
-                  {item.assignedTo && item.assignedTo.trim() !== '' && (
-                    <p className='text-xs text-gray-600 mt-2'>
-                      Assigned to: <span className='font-medium text-blue-600'>{item.assignedTo}</span>
-                    </p>
-                  )}
-
-                  {item.alertTime && (
-                    <p className='text-xs text-gray-600 mt-2 flex gap-2'>
-                      <Clock size={15}/>
-                       Alert Time: <span className='font-medium'>{item.alertTime}</span>
-                    </p>
-                  )}
-
-                  <div className='flex justify-between items-center mt-3'>
-                    <div className='flex gap-2 items-center'>
-                      <img src={calendardate} className='w-4 h-4' alt="calendar" />
-                      <p className='text-xs text-gray-700'>
-                        {item.date} {item.time && `at ${item.time}`}
-                      </p>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleStar(item.id, item.starred);
-                      }}
-                      className='transition-transform hover:scale-110 active:scale-95'
-                    >
-                      <img
-                        src={star}
-                        className='w-5 h-5'
-                        alt="star"
-                        style={{
-                          filter: item.starred
-                            ? 'invert(66%) sepia(93%) saturate(1352%) brightness(95%) contrast(101%)'
-                            : 'grayscale(100%) opacity(40%)'
-                        }}
-                      />
-                    </button>
-                  </div>
-
-                  <div className='h-[1px] bg-[#E5E5E5] my-3'></div>
-                  
-                  <div className='flex justify-end items-center'>
-                    {shouldShowStatus(item) && item.createdBy === currentUser && (
-                      <span
-                        className={`font-medium text-sm ${
-                          item.status === 'approved' ? 'text-green-600' : item.status === 'reject' ? 'text-red-600' : 'text-orange-600'
-                        }`}
-                      >
-                        {item.status === 'approved' ? '✓ Approved' : item.status === 'reject' ? '✗ Rejected' : 'Pending'}
-                      </span>
-                    )}
-                  </div>
+            {filteredReminders.map((item) => (
+              <div key={item.id} className='border border-[#E5E5E5] shadow-md px-4 py-4 mt-6 rounded-lg hover:shadow-lg transition-shadow'>
+                <div className='flex justify-between'>
+                  <h1 className='text-sm font-semibold'>{item.title}</h1>
+                  <p className='text-[#D4183D] text-xs'>! {item.priority}</p>
                 </div>
-              );
-            })}
+
+                {item.description && (
+                  <p className='text-xs text-gray-600 mt-2'>{item.description}</p>
+                )}
+
+                <div className='flex gap-2 mt-3'>
+                  <img src={user01} className='' alt="user" />
+                  <p className='text-xs text-gray-600'>
+                    Created by: <span className='font-medium'>{item.createdBy}</span>
+                  </p>
+                </div>
+
+                {item.assignedTo && item.assignedTo.trim() !== '' && (
+                  <p className='text-xs text-gray-600 mt-2'>
+                    Assigned to: <span className='font-medium text-blue-600'>{item.assignedTo}</span>
+                  </p>
+                )}
+
+                {item.alertTime && (
+                  <p className='text-xs text-gray-600 mt-2 flex gap-2'>
+                    <Clock size={15}/> Alert Time: <span className='font-medium'>{item.alertTime}</span>
+                  </p>
+                )}
+
+                <div className='flex justify-between items-center mt-3'>
+                  <div className='flex gap-2 items-center'>
+                    <img src={calendardate} className='w-4 h-4' alt="calendar" />
+                    <p className='text-xs text-gray-700'>{item.date} {item.time && `at ${item.time}`}</p>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleStar(item.id, item.starred); }}
+                    className='transition-transform hover:scale-110 active:scale-95'
+                  >
+                    <img
+                      src={star}
+                      className='w-5 h-5'
+                      alt="star"
+                      style={{
+                        filter: item.starred
+                          ? 'invert(66%) sepia(93%) saturate(1352%) brightness(95%) contrast(101%)'
+                          : 'grayscale(100%) opacity(40%)'
+                      }}
+                    />
+                  </button>
+                </div>
+
+                <div className='h-[1px] bg-[#E5E5E5] my-3'></div>
+                <div className='flex justify-end items-center'>
+                  {shouldShowStatus(item) && item.createdBy === currentUser && (
+                    <span className={`font-medium text-sm ${item.status === 'approved' ? 'text-green-600' : item.status === 'reject' ? 'text-red-600' : 'text-orange-600'}`}>
+                      {item.status === 'approved' ? '✓ Approved' : item.status === 'reject' ? '✗ Rejected' : 'Pending'}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -538,6 +428,7 @@ const HRDashboard = () => {
                 </select>
               </div>
 
+              {/* Date - with month/year dropdowns */}
               <div>
                 <label className='block text-sm font-medium text-gray-700 mb-1.5'>Date *</label>
                 <DatePicker
@@ -545,11 +436,17 @@ const HRDashboard = () => {
                   onChange={(date) => setNewReminder({ ...newReminder, date })}
                   dateFormat="yyyy-MM-dd"
                   placeholderText="Select date"
+                  showMonthDropdown
+                  showYearDropdown
+                  dropdownMode="select"
+                  yearDropdownItemNumber={10}
+                  scrollableYearDropdown
                   className='w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer'
                   wrapperClassName="w-full"
                 />
               </div>
 
+              {/* Due Time */}
               <div>
                 <label className='block text-sm font-medium text-gray-700 mb-1.5'>Due Time *</label>
                 <DatePicker
@@ -566,6 +463,7 @@ const HRDashboard = () => {
                 />
               </div>
 
+              {/* Alert Time */}
               <div>
                 <label className='block text-sm font-medium text-gray-700 mb-1.5'>Alert Time</label>
                 <DatePicker
@@ -598,10 +496,7 @@ const HRDashboard = () => {
                 {newReminder.assignedEmails?.length > 0 && (
                   <div className='mt-2 flex flex-wrap gap-1.5'>
                     {newReminder.assignTo.split(', ').map((role, index) => (
-                      <span
-                        key={index}
-                        className='inline-flex items-center bg-blue-50 text-blue-700 text-xs px-3 py-1 rounded-full'
-                      >
+                      <span key={index} className='inline-flex items-center bg-blue-50 text-blue-700 text-xs px-3 py-1 rounded-full'>
                         {role}
                       </span>
                     ))}
@@ -612,36 +507,19 @@ const HRDashboard = () => {
                   <div className='absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-300 rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto' style={{scrollbarWidth:'none'}}>
                     {/* HR Section */}
                     <div className='border-b border-gray-200'>
-                      <div
-                        className='px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center'
-                        onClick={() => handleRoleClick('HR')}
-                      >
-                        <span className='font-medium text-sm text-gray-700'>
-                          HR {users.HR.length > 0 && `(${users.HR.length})`}
-                        </span>
-                        {users.HR.length > 1 && (
-                          expandedRole === 'HR' ? <IoChevronUp className='text-gray-500' /> : <IoChevronForward className='text-gray-500' />
-                        )}
+                      <div className='px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center' onClick={() => handleRoleClick('HR')}>
+                        <span className='font-medium text-sm text-gray-700'>HR {users.HR.length > 0 && `(${users.HR.length})`}</span>
+                        {users.HR.length > 1 && (expandedRole === 'HR' ? <IoChevronUp className='text-gray-500' /> : <IoChevronForward className='text-gray-500' />)}
                       </div>
                       {expandedRole === 'HR' && users.HR.length > 1 && (
                         <div className='bg-gray-50 px-4 pb-3'>
                           <label className='flex items-center gap-2 py-2 cursor-pointer hover:bg-white px-2 rounded'>
-                            <input
-                              type="checkbox"
-                              checked={selectAllHR}
-                              onChange={handleSelectAllHR}
-                              className='w-4 h-4 text-blue-600 rounded focus:ring-blue-500'
-                            />
+                            <input type="checkbox" checked={selectAllHR} onChange={handleSelectAllHR} className='w-4 h-4 text-blue-600 rounded focus:ring-blue-500' />
                             <span className='text-sm font-medium text-blue-600'>Select All HR</span>
                           </label>
                           {users.HR.map(user => (
                             <label key={user.id} className='flex items-center gap-2 py-2 cursor-pointer hover:bg-white px-2 rounded'>
-                              <input
-                                type="checkbox"
-                                checked={selectedUsers.some(u => u.id === user.id)}
-                                onChange={() => toggleUserSelection(user)}
-                                className='w-4 h-4 text-blue-600 rounded focus:ring-blue-500'
-                              />
+                              <input type="checkbox" checked={selectedUsers.some(u => u.id === user.id)} onChange={() => toggleUserSelection(user)} className='w-4 h-4 text-blue-600 rounded focus:ring-blue-500' />
                               <div className='flex-1'>
                                 <p className='text-sm font-medium text-gray-900'>{user.email}</p>
                                 <p className='text-xs text-gray-500'>{user.role}</p>
@@ -654,36 +532,19 @@ const HRDashboard = () => {
 
                     {/* CTO Section */}
                     <div className='border-b border-gray-200'>
-                      <div
-                        className='px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center'
-                        onClick={() => handleRoleClick('CTO')}
-                      >
-                        <span className='font-medium text-sm text-gray-700'>
-                          CTO {users.CTO.length > 0 && `(${users.CTO.length})`}
-                        </span>
-                        {users.CTO.length > 1 && (
-                          expandedRole === 'CTO' ? <IoChevronUp className='text-gray-500' /> : <IoChevronForward className='text-gray-500' />
-                        )}
+                      <div className='px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center' onClick={() => handleRoleClick('CTO')}>
+                        <span className='font-medium text-sm text-gray-700'>CTO {users.CTO.length > 0 && `(${users.CTO.length})`}</span>
+                        {users.CTO.length > 1 && (expandedRole === 'CTO' ? <IoChevronUp className='text-gray-500' /> : <IoChevronForward className='text-gray-500' />)}
                       </div>
                       {expandedRole === 'CTO' && users.CTO.length > 1 && (
                         <div className='bg-gray-50 px-4 pb-3'>
                           <label className='flex items-center gap-2 py-2 cursor-pointer hover:bg-white px-2 rounded'>
-                            <input
-                              type="checkbox"
-                              checked={selectAllCTO}
-                              onChange={handleSelectAllCTO}
-                              className='w-4 h-4 text-blue-600 rounded focus:ring-blue-500'
-                            />
+                            <input type="checkbox" checked={selectAllCTO} onChange={handleSelectAllCTO} className='w-4 h-4 text-blue-600 rounded focus:ring-blue-500' />
                             <span className='text-sm font-medium text-blue-600'>Select All CTO</span>
                           </label>
                           {users.CTO.map(user => (
                             <label key={user.id} className='flex items-center gap-2 py-2 cursor-pointer hover:bg-white px-2 rounded'>
-                              <input
-                                type="checkbox"
-                                checked={selectedUsers.some(u => u.id === user.id)}
-                                onChange={() => toggleUserSelection(user)}
-                                className='w-4 h-4 text-blue-600 rounded focus:ring-blue-500'
-                              />
+                              <input type="checkbox" checked={selectedUsers.some(u => u.id === user.id)} onChange={() => toggleUserSelection(user)} className='w-4 h-4 text-blue-600 rounded focus:ring-blue-500' />
                               <div className='flex-1'>
                                 <p className='text-sm font-medium text-gray-900'>{user.email}</p>
                                 <p className='text-xs text-gray-500'>{user.role}</p>
@@ -696,27 +557,15 @@ const HRDashboard = () => {
 
                     {/* CEO Section */}
                     <div className='border-b border-gray-200'>
-                      <div
-                        className='px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center'
-                        onClick={() => handleRoleClick('CEO')}
-                      >
-                        <span className='font-medium text-sm text-gray-700'>
-                          CEO {users.CEO.length > 0 && `(${users.CEO.length})`}
-                        </span>
-                        {users.CEO.length > 1 && (
-                          expandedRole === 'CEO' ? <IoChevronUp className='text-gray-500' /> : <IoChevronForward className='text-gray-500' />
-                        )}
+                      <div className='px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center' onClick={() => handleRoleClick('CEO')}>
+                        <span className='font-medium text-sm text-gray-700'>CEO {users.CEO.length > 0 && `(${users.CEO.length})`}</span>
+                        {users.CEO.length > 1 && (expandedRole === 'CEO' ? <IoChevronUp className='text-gray-500' /> : <IoChevronForward className='text-gray-500' />)}
                       </div>
                       {expandedRole === 'CEO' && users.CEO.length > 1 && (
                         <div className='bg-gray-50 px-4 pb-3'>
                           {users.CEO.map(user => (
                             <label key={user.id} className='flex items-center gap-2 py-2 cursor-pointer hover:bg-white px-2 rounded'>
-                              <input
-                                type="checkbox"
-                                checked={selectedUsers.some(u => u.id === user.id)}
-                                onChange={() => toggleUserSelection(user)}
-                                className='w-4 h-4 text-blue-600 rounded focus:ring-blue-500'
-                              />
+                              <input type="checkbox" checked={selectedUsers.some(u => u.id === user.id)} onChange={() => toggleUserSelection(user)} className='w-4 h-4 text-blue-600 rounded focus:ring-blue-500' />
                               <div className='flex-1'>
                                 <p className='text-sm font-medium text-gray-900'>{user.email}</p>
                                 <p className='text-xs text-gray-500'>{user.role}</p>
@@ -730,11 +579,7 @@ const HRDashboard = () => {
                     {selectedUsers.length > 0 && (
                       <div className='flex gap-2 p-3 border-t border-gray-200 bg-gray-50 sticky bottom-0 z-10'>
                         <button
-                          onClick={() => {
-                            setSelectedUsers([]);
-                            setSelectAllCTO(false);
-                            setSelectAllHR(false);
-                          }}
+                          onClick={() => { setSelectedUsers([]); setSelectAllCTO(false); setSelectAllHR(false); }}
                           className='flex-1 px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium transition-colors'
                         >
                           Clear
