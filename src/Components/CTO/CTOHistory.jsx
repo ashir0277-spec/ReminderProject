@@ -14,10 +14,10 @@ import {
   IoTrashOutline,
   IoCheckboxOutline,
   IoCloseOutline,
+  IoSearchOutline,
 } from "react-icons/io5";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useSearch } from '../../Context/SearchContext';
 
 const CTOHistory = () => {
   const [history, setHistory] = useState([]);
@@ -26,8 +26,7 @@ const CTOHistory = () => {
   const [deleteModal, setDeleteModal] = useState({ show: false, reminderId: null, isMultiple: false, deleting: false });
   const [detailModal, setDetailModal] = useState({ show: false, item: null });
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('ctoHistoryTab') || 'all');
-
-  const { searchQuery } = useSearch();
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => { localStorage.setItem('ctoHistoryTab', activeTab); }, [activeTab]);
 
@@ -39,7 +38,6 @@ const CTOHistory = () => {
     return () => unsubscribe();
   }, []);
 
-  // ── Selection ──────────────────────────────────────────────────────────────
   const toggleSelection = (e, id) => {
     e.stopPropagation();
     setSelectedItems(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -53,7 +51,6 @@ const CTOHistory = () => {
     }
   };
 
-  // ── Delete ─────────────────────────────────────────────────────────────────
   const openDeleteSingle = (id) => {
     setDetailModal({ show: false, item: null });
     setDeleteModal({ show: true, reminderId: id, isMultiple: false, deleting: false });
@@ -90,11 +87,13 @@ const CTOHistory = () => {
   };
 
   const filterBySearch = (r) => {
-    if (!searchQuery?.trim()) return true;
+    if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
     return (
-      (r.title && r.title.toLowerCase().includes(q)) ||
-      (r.description && r.description.toLowerCase().includes(q))
+      (r.title || '').toLowerCase().includes(q) ||
+      (r.description || '').toLowerCase().includes(q) ||
+      (r.assignedTo || '').toLowerCase().includes(q) ||
+      (r.createdBy || '').toLowerCase().includes(q)
     );
   };
 
@@ -104,6 +103,7 @@ const CTOHistory = () => {
   const ctoCount = history.filter(r => r.createdBy === 'CTO').length;
   const hrCount  = history.filter(r => r.createdBy === 'HR').length;
   const selectionMode = selectedItems.length > 0;
+  const isSearching = searchQuery.trim().length > 0;
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   const getAssignedToDisplay = (item) => {
@@ -162,7 +162,6 @@ const CTOHistory = () => {
     return time ? `${fd} ${time}` : fd;
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
       <style>{`
@@ -190,9 +189,9 @@ const CTOHistory = () => {
         <div className="flex justify-between items-center mb-4">
           <div>
             <h2 className="text-xl font-semibold">Reminders History</h2>
-            {searchQuery?.trim() && (
+            {isSearching && (
               <p className="text-sm text-gray-500 mt-1">
-                {filteredHistory.length} result{filteredHistory.length !== 1 ? 's' : ''} for &quot;{searchQuery}&quot;
+                {filteredHistory.length} result{filteredHistory.length !== 1 ? 's' : ''} for "{searchQuery}"
               </p>
             )}
           </div>
@@ -225,6 +224,26 @@ const CTOHistory = () => {
           </div>
         </div>
 
+        {/* ── Search Bar ── */}
+        <div className="relative mb-4">
+          <IoSearchOutline className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by title, description, assigned to..."
+            className="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 bg-white transition-colors"
+          />
+          {isSearching && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <IoCloseOutline className="text-lg" />
+            </button>
+          )}
+        </div>
+
         {/* ── Floating Delete Bar ── */}
         {selectionMode && (
           <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-4 animate-fade-in">
@@ -237,16 +256,8 @@ const CTOHistory = () => {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setSelectedItems([])}
-                className="text-xs text-blue-600 hover:text-blue-800 font-medium px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors"
-              >
-                Clear
-              </button>
-              <button
-                onClick={openDeleteMultiple}
-                className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors shadow-sm"
-              >
+              <button onClick={() => setSelectedItems([])} className="text-xs text-blue-600 hover:text-blue-800 font-medium px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">Clear</button>
+              <button onClick={openDeleteMultiple} className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors shadow-sm">
                 <IoTrashOutline className="text-sm" />
                 Delete {selectedItems.length} item{selectedItems.length > 1 ? 's' : ''}
               </button>
@@ -254,25 +265,27 @@ const CTOHistory = () => {
           </div>
         )}
 
-        {/* ── Tabs ── */}
-        <div className="tabs-container flex gap-2 mb-5 overflow-x-auto pb-2">
-          {[
-            { key: 'all', label: 'All', count: allCount },
-            { key: 'ceo', label: 'CEO', count: ceoCount },
-            { key: 'cto', label: 'CTO', count: ctoCount },
-            { key: 'hr',  label: 'HR',  count: hrCount  },
-          ].map(tab => (
-            <button
-              key={tab.key}
-              className={`px-4 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
-                activeTab === tab.key ? 'bg-[#0081FFFC] text-white' : 'text-[#2C3E50] bg-gray-100 hover:bg-gray-200'
-              }`}
-              onClick={() => { setActiveTab(tab.key); setSelectedItems([]); }}
-            >
-              {tab.label} ({tab.count})
-            </button>
-          ))}
-        </div>
+        {/* ── Tabs — hidden when searching ── */}
+        {!isSearching && (
+          <div className="tabs-container flex gap-2 mb-5 overflow-x-auto pb-2">
+            {[
+              { key: 'all', label: 'All', count: allCount },
+              { key: 'ceo', label: 'CEO', count: ceoCount },
+              { key: 'cto', label: 'CTO', count: ctoCount },
+              { key: 'hr',  label: 'HR',  count: hrCount  },
+            ].map(tab => (
+              <button
+                key={tab.key}
+                className={`px-4 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
+                  activeTab === tab.key ? 'bg-[#0081FFFC] text-white' : 'text-[#2C3E50] bg-gray-100 hover:bg-gray-200'
+                }`}
+                onClick={() => { setActiveTab(tab.key); setSelectedItems([]); }}
+              >
+                {tab.label} ({tab.count})
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* ── Table ── */}
         <div className="overflow-x-auto -mx-4 lg:mx-0 px-4 lg:px-0">
@@ -286,15 +299,15 @@ const CTOHistory = () => {
 
           {filteredHistory.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-lg mt-2 min-w-[700px]">
-              {searchQuery?.trim() ? (
+              {isSearching ? (
                 <>
                   <p className="text-gray-500 text-lg">🔍 No matching results</p>
-                  <p className="text-gray-400 text-sm mt-2">No reminders found for &quot;<span className="font-medium">{searchQuery}</span>&quot;</p>
-                  <p className="text-gray-400 text-xs mt-1">Try a different keyword</p>
+                  <p className="text-gray-400 text-sm mt-2">No reminders found for "<span className="font-medium">{searchQuery}</span>"</p>
+                  <button onClick={() => setSearchQuery('')} className="mt-3 text-blue-500 text-sm hover:underline">Clear search</button>
                 </>
               ) : (
                 <>
-                  <p className="text-gray-500 text-lg"> No reminder history available !</p>
+                  <p className="text-gray-500 text-lg">No reminder history available !</p>
                   <p className="text-gray-400 text-sm mt-2">
                     {activeTab !== 'all' ? `No ${activeTab.toUpperCase()} reminders found` : 'No reminders found'}
                   </p>
@@ -307,7 +320,6 @@ const CTOHistory = () => {
                 const isSelected = selectedItems.includes(item.id);
                 return (
                   <div key={item.id} className={`relative ${isSelected ? 'ring-2 ring-blue-500 rounded-md' : ''}`}>
-
                     {selectionMode && (
                       <button
                         onClick={(e) => toggleSelection(e, item.id)}
@@ -320,7 +332,6 @@ const CTOHistory = () => {
                         </svg>
                       </button>
                     )}
-
                     <div
                       className={`grid grid-cols-[2fr_2fr_1.5fr_1.5fr_1fr] bg-white px-4 py-3 rounded-md shadow-sm text-sm transition-all cursor-pointer ${
                         selectionMode
@@ -342,7 +353,6 @@ const CTOHistory = () => {
                         {item.priority}
                       </div>
                     </div>
-
                   </div>
                 );
               })}
@@ -351,34 +361,25 @@ const CTOHistory = () => {
         </div>
       </div>
 
-      {/* ══════════════════════════════════════
-          Detail Popup — Simple
-      ══════════════════════════════════════ */}
+      {/* Detail Popup */}
       {detailModal.show && detailModal.item && (() => {
         const item = detailModal.item;
         return (
           <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
             <div className="absolute inset-0 bg-black/40" onClick={() => setDetailModal({ show: false, item: null })} />
-
             <div className="relative bg-white w-full max-w-md rounded-xl shadow-xl animate-slide-up">
-
-              {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
                 <h2 className="text-base font-semibold text-gray-900 truncate pr-4">{item.title}</h2>
                 <button onClick={() => setDetailModal({ show: false, item: null })} className="text-gray-400 hover:text-gray-600 shrink-0">
                   <IoCloseOutline className="text-xl" />
                 </button>
               </div>
-
-              {/* Body */}
               <div className="modal-scroll overflow-y-auto max-h-[55vh] px-5 py-4 space-y-3 text-sm">
-
-                {/* Badges */}
                 <div className="flex flex-wrap gap-2">
                   <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${getStatusBadge(item.status)}`}>
                     {shouldShowStatus(item) ? getStatusText(item.status, item.updatedBy) : 'N/A'}
                   </span>
-                  <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${getPriorityBadge(item.priority)}`}>
+                  <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${getPriorityBadge(item.priority)}`}>
                     {item.priority || 'Normal'}
                   </span>
                   {item.createdBy && (
@@ -387,8 +388,6 @@ const CTOHistory = () => {
                     </span>
                   )}
                 </div>
-
-                {/* Info rows */}
                 <div className="space-y-2.5 pt-1">
                   <div className="flex gap-3">
                     <span className="text-gray-400 w-24 shrink-0">Date</span>
@@ -411,35 +410,20 @@ const CTOHistory = () => {
                     </div>
                   )}
                 </div>
-
-                {/* Rejection reason */}
                 {item.status === 'reject' && item.reason && (
                   <div className="bg-red-50 border border-red-100 rounded-lg p-3 text-xs text-red-700">
                     <span className="font-semibold block mb-1">Rejection Reason</span>
                     {item.reason}
                   </div>
                 )}
-
-                {/* Approved by */}
                 {item.status === 'approved' && item.updatedBy && (
                   <p className="text-xs text-green-600 font-medium">✓ Approved by {item.updatedBy}</p>
                 )}
               </div>
-
-              {/* Footer */}
               <div className="flex justify-end gap-2 px-5 py-3 border-t border-gray-100">
-                <button
-                  onClick={() => setDetailModal({ show: false, item: null })}
-                  className="px-4 py-1.5 rounded-lg text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => openDeleteSingle(item.id)}
-                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm text-white bg-red-500 hover:bg-red-600 transition-colors"
-                >
-                  <IoTrashOutline className="text-sm" />
-                  Delete
+                <button onClick={() => setDetailModal({ show: false, item: null })} className="px-4 py-1.5 rounded-lg text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">Close</button>
+                <button onClick={() => openDeleteSingle(item.id)} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm text-white bg-red-500 hover:bg-red-600 transition-colors">
+                  <IoTrashOutline className="text-sm" /> Delete
                 </button>
               </div>
             </div>
@@ -447,15 +431,10 @@ const CTOHistory = () => {
         );
       })()}
 
-      {/* ══════════════════════════════════════
-          Delete Confirmation Modal
-      ══════════════════════════════════════ */}
+      {/* Delete Confirmation Modal */}
       {deleteModal.show && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => !deleteModal.deleting && setDeleteModal({ show: false, reminderId: null, isMultiple: false, deleting: false })}
-          />
+          <div className="absolute inset-0 bg-black/50" onClick={() => !deleteModal.deleting && setDeleteModal({ show: false, reminderId: null, isMultiple: false, deleting: false })} />
           <div className="relative bg-white p-6 rounded-xl w-full max-w-md shadow-2xl animate-slide-up">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
@@ -466,27 +445,14 @@ const CTOHistory = () => {
                 <p className="text-sm text-gray-500">This action cannot be undone</p>
               </div>
             </div>
-
             {!deleteModal.deleting ? (
               <>
                 <p className="text-gray-600 text-sm mb-6">
-                  {deleteModal.isMultiple
-                    ? `Are you sure you want to delete ${selectedItems.length} selected reminder(s)?`
-                    : 'Are you sure you want to delete this reminder?'}
+                  {deleteModal.isMultiple ? `Are you sure you want to delete ${selectedItems.length} selected reminder(s)?` : 'Are you sure you want to delete this reminder?'}
                 </p>
                 <div className="flex justify-end gap-3">
-                  <button
-                    onClick={() => setDeleteModal({ show: false, reminderId: null, isMultiple: false, deleting: false })}
-                    className="bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-lg text-gray-700 font-medium transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={confirmDelete}
-                    className="bg-red-500 hover:bg-red-600 px-5 py-2 rounded-lg text-white font-medium transition-colors"
-                  >
-                    Delete
-                  </button>
+                  <button onClick={() => setDeleteModal({ show: false, reminderId: null, isMultiple: false, deleting: false })} className="bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-lg text-gray-700 font-medium transition-colors">Cancel</button>
+                  <button onClick={confirmDelete} className="bg-red-500 hover:bg-red-600 px-5 py-2 rounded-lg text-white font-medium transition-colors">Delete</button>
                 </div>
               </>
             ) : (
